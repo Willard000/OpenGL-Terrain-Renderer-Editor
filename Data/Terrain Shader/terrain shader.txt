@@ -1,0 +1,5 @@
+- Terrain Shader
+DIR Data\Terrain Shader\
+name Terrain Shader
+vertex terrain shader.vert
+fragment terrain shader.frag

@@ -1,0 +1,5 @@
+- Basic Shader
+DIR Data\Basic Shader\
+name Basic Shader
+vertex basic shader.vert
+fragment basic shader.frag

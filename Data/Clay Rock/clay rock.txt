@@ -1,0 +1,4 @@
+# Model
+DIR Data\Models\Clay Rock\
+file clay rock.obj
+program 5

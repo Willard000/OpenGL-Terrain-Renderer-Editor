@@ -1,0 +1,4 @@
+D:/Documents/Visual Studio 2019/Projects/8.21/8.21/include/glm/out/build/x64-Debug (default)/CMakeFiles/edit_cache.dir
+D:/Documents/Visual Studio 2019/Projects/8.21/8.21/include/glm/out/build/x64-Debug (default)/CMakeFiles/glm_static.dir
+D:/Documents/Visual Studio 2019/Projects/8.21/8.21/include/glm/out/build/x64-Debug (default)/CMakeFiles/glm_shared.dir
+D:/Documents/Visual Studio 2019/Projects/8.21/8.21/include/glm/out/build/x64-Debug (default)/CMakeFiles/rebuild_cache.dir
