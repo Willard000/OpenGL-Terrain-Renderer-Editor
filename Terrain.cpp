@@ -121,19 +121,19 @@ void Terrain::draw(glm::vec2 position, glm::vec4 quad, float space, std::vector<
 
 	std::vector<GLfloat> n_sub_heights[4];
 	const auto quad_one = glm::vec4(quad.x, quad.y, quad.z / 2.0f, quad.w / 2.0f);
-	const auto start_one = start_index;
+	const auto start_one = 0;
 	generate_sub_heights(&sub_heights, &n_sub_heights[0], start_one, _width);
 
 	const auto quad_two = glm::vec4(quad.x + quad.z / 2.0f, quad.y, quad.z / 2.0f, quad.w / 2.0f);
-	const auto start_two = start_index + (_width / 2);
+	const auto start_two = (_width / 2);
 	generate_sub_heights(&sub_heights, &n_sub_heights[1], start_two, _width);
 
 	const auto quad_three = glm::vec4(quad.x, quad.y + quad.w / 2.0f, quad.z / 2.0f, quad.w / 2.0f);
-	const auto start_three = start_index + (_width * _length) / 2 + (_length / 2);
+	const auto start_three = (_width * _length) / 2 + (_length / 2);
  	generate_sub_heights(&sub_heights, &n_sub_heights[2], start_three, _width);
 
 	const auto quad_four = glm::vec4(quad.x + quad.z / 2.0f, quad.y + quad.w / 2.0f, quad.z / 2.0f, quad.w / 2.0f);
-	const auto start_four = start_index + (_width * _length / 2) + (_length / 2) + (_width / 2);
+	const auto start_four = (_width * _length / 2) + (_length / 2) + (_width / 2);
 	generate_sub_heights(&sub_heights, &n_sub_heights[3], start_four, _width);
 
 	if (in_quad(position, quad_one)) {

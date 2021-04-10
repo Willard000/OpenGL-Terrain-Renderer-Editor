@@ -36,7 +36,7 @@ int main() {
 	//Transform transform(glm::vec3(0, 0, -5));
 	//object->set_transform(transform);
 
-	Terrain terrain(10, 10, 50.0f, &program);
+	Terrain terrain(10, 10, 100.0f, &program);
 
 	while(!glfwWindowShouldClose(window.get()) && !glfwGetKey(window.get(), GLFW_KEY_ESCAPE)) {
 		clock.update();
@@ -52,7 +52,7 @@ int main() {
 
 		world->draw(GL_TRIANGLES);
 
-		terrain.draw(camera.get_position(), 2);
+		terrain.draw(camera.get_position(), 5);
 
 		glfwSwapBuffers(window.get());
 
