@@ -5,7 +5,7 @@
 
 #include "Window.h"
 
-constexpr float BASE_SPEED = 1000000.0f;
+constexpr float BASE_SPEED = 10000.0f;
 
 Camera::Camera(Window* window, Settings s) :
 	_window			( window   ),

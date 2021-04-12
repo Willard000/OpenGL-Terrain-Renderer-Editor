@@ -11,6 +11,7 @@ uniform vec4 quad;
 
 uniform mat4 projection;
 uniform mat4 view;
+uniform mat4 model;
 
 uniform samplerBuffer heights;
 
@@ -39,5 +40,7 @@ void main() {
 	float height = get_height(gl_VertexID);
 	out_height = height;
 	vec2 position = vec2(gl_InstanceID % width, gl_InstanceID / width);
-	gl_Position = projection * view * vec4((vertex.x + position.x) * space + quad.x, height, (vertex.y + position.y) * space + quad.y, 1.0);
+	float x = (vertex.x + position.x) * space + quad.x;
+	float z = (vertex.y + position.y) * space + quad.y;
+	gl_Position = projection * view * model * vec4(x, height, z, 1.0);
 }

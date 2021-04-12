@@ -36,7 +36,8 @@ int main() {
 	//Transform transform(glm::vec3(0, 0, -5));
 	//object->set_transform(transform);
 
-	Terrain terrain(10, 10, 100.0f, &program);
+	Terrain terrain(24, 24, &program);
+	terrain.get_transform().set_scale(glm::vec3(10.0f, 1.0f, 10.0f));
 
 	while(!glfwWindowShouldClose(window.get()) && !glfwGetKey(window.get(), GLFW_KEY_ESCAPE)) {
 		clock.update();
@@ -51,6 +52,8 @@ int main() {
 		glClearBufferfv(GL_COLOR, 0, black);
 
 		world->draw(GL_TRIANGLES);
+
+		terrain.update(camera.get_position(), 5);
 
 		terrain.draw(camera.get_position(), 5);
 
@@ -87,6 +90,7 @@ int main() {
 		if(glfwGetKey(window.get(), GLFW_KEY_E)) {
 			camera.move(CAMERA_UP, (float)clock.get_time());
 		}
+
 	}
 
 

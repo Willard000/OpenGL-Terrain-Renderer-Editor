@@ -90,4 +90,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\Terrain Shader\terrain shader.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Data\Terrain Shader\terrain shader.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
 </Project>
