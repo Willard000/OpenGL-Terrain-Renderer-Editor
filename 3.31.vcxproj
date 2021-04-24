@@ -72,9 +72,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>D:\Documents\Visual Studio 2019\Projects\3.31\3.31\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Documents\Visual Studio 2019\Projects\3.31\3.31\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>D:\Documents\Visual Studio 2019\Projects\3.31\3.31\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Documents\Visual Studio 2019\Projects\3.31\3.31\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -147,15 +151,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="Data\Shaders\Terrain Shader\stencil.frag" />
+    <None Include="Data\Shaders\Terrain Shader\stencil.geo" />
+    <None Include="Data\Shaders\Terrain Shader\stencil.vert" />
+    <None Include="Data\Shaders\Terrain Shader\terrain.frag" />
+    <None Include="Data\Shaders\Terrain Shader\terrain.geo" />
+    <None Include="Data\Shaders\Terrain Shader\terrain.vert" />
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Clock.cpp" />
     <ClCompile Include="DebugRect.cpp" />
+    <ClCompile Include="Editor.cpp" />
     <ClCompile Include="FileReader.cpp" />
+    <ClCompile Include="Game.cpp" />
     <ClCompile Include="gl3w.c" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Program.cpp" />
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="ShaderManager.cpp" />
+    <ClCompile Include="StateManager.cpp" />
     <ClCompile Include="Terrain.cpp" />
     <ClCompile Include="Transform.cpp" />
     <ClCompile Include="Window.cpp" />
@@ -163,20 +179,22 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Clock.h" />
+    <ClInclude Include="Core.h" />
     <ClInclude Include="DebugRect.h" />
+    <ClInclude Include="Editor.h" />
     <ClInclude Include="FileReader.h" />
+    <ClInclude Include="Game.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="PerlinNoise.hpp" />
     <ClInclude Include="Program.h" />
     <ClInclude Include="Scene.h" />
+    <ClInclude Include="ShaderManager.h" />
+    <ClInclude Include="State.h" />
+    <ClInclude Include="StateManager.h" />
     <ClInclude Include="Terrain.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Transform.h" />
     <ClInclude Include="Window.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Data\Terrain Shader\terrain shader.frag" />
-    <None Include="Data\Terrain Shader\terrain shader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

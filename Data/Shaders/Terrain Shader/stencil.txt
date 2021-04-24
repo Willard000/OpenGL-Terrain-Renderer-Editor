@@ -1,0 +1,6 @@
+-- Stencil Shader
+DIR Data\Shaders\Terrain Shader\
+name Stencil Shader
+vertex stencil.vert
+fragment stencil.frag
+geometry stencil.geo

@@ -1,5 +1,5 @@
 #include <GL/gl3w.h>
-#include <GLFW/glfw3.h>
+#include <GLFW/glfw3.h> 
 
 #include <cassert>
 
@@ -11,6 +11,12 @@
 
 #include "Terrain.h"
 
+#include "Core.h"
+#include "Game.h"
+#include "Editor.h"
+#include "StateManager.h"
+#include "ShaderManager.h"
+
 #include <iostream>
 
 int main() {
@@ -19,25 +25,32 @@ int main() {
 		assert(0);
 	}
 
-	const GLfloat black[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	//const GLfloat black[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-	Window window;
+	Core core;
+	core._clock = std::make_unique<Clock>();
+	core._window = std::make_unique<Window>();
 	Camera::Settings camera_settings;
-	Camera camera(&window, camera_settings);
-	Clock clock;
+	core._camera = std::make_unique<Camera>(core._window.get(), camera_settings);
+	core._state_manager = std::make_unique<StateManager>();
+	core._shader_manager = std::make_unique<ShaderManager>(core._camera.get());
 
-	auto world = std::make_unique<Scene>();
+	//core._state_manager->add(std::make_unique<Game>(&core));
+	core._state_manager->add(std::make_unique<Editor>(&core));
+	core._state_manager->run();
+
+	/*auto world = std::make_unique<Scene>();
 	auto object = world->new_child();
 
-	//object->load_assimp("Data\\Clay Rock\\", "Clay Rock.obj");
+	object->load_assimp("Data\\Clay Rock\\", "Clay Rock.obj");
 	Program program(0, "Data\\Terrain Shader\\Terrain shader.txt");
-	//object->attach_program(&program);
+	object->attach_program(&program);
 
-	//Transform transform(glm::vec3(0, 0, -5));
-	//object->set_transform(transform);
+	Transform transform(glm::vec3(0, 0, -5));
+	object->set_transform(transform);
 
-	Terrain terrain(24, 24, &program);
-	terrain.get_transform().set_scale(glm::vec3(10.0f, 1.0f, 10.0f));
+	Terrain terrain(100, 100, &program);
+	terrain.get_transform().set_scale(glm::vec3(1.0f, 1.0f, 1.0f));
 
 	while(!glfwWindowShouldClose(window.get()) && !glfwGetKey(window.get(), GLFW_KEY_ESCAPE)) {
 		clock.update();
@@ -55,7 +68,7 @@ int main() {
 
 		terrain.update(camera.get_position(), 5);
 
-		terrain.draw(camera.get_position(), 5);
+		terrain.draw(camera.get_position(), 0);
 
 		glfwSwapBuffers(window.get());
 
@@ -91,7 +104,7 @@ int main() {
 			camera.move(CAMERA_UP, (float)clock.get_time());
 		}
 
-	}
+	}*/
 
 
 	return 0;

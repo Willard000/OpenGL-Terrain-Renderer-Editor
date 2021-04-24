@@ -52,6 +52,10 @@ GLuint load_shaders(const ShaderInfo* program) {
 				std::vector<GLchar> info_log(info_log_length);
 				glGetShaderInfoLog(shader_id, info_log_length, 0, &info_log[0]);
 				std::cout << "Shader Log -> \n" << &info_log[0] << '\n';
+
+				std::cout << "Reload Shaders... ";
+				system("PAUSE");
+				std::cout << '\n';
 			}
 		}
 		else {
