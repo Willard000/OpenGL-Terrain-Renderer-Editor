@@ -21,7 +21,7 @@ Game::Game(Core* core) :
 
 	const auto terrain_shader = _core->_shader_manager->get_program(1);
 	const auto stencil_shader = _core->_shader_manager->get_program(2);
-	_terrain = std::make_unique<Terrain>(10, 10, terrain_shader, stencil_shader);
+	//_terrain = std::make_unique<Terrain>(10, 10, terrain_shader, stencil_shader);
 }
 
 bool Game::handle_input() {
@@ -62,14 +62,14 @@ void Game::update() {
 	glUniformMatrix4fv(glGetUniformLocation(2, "view"), 1, GL_FALSE, &_core->_camera->get_view()[0][0]);
 	glUniformMatrix4fv(glGetUniformLocation(2, "projection"), 1, GL_FALSE, &_core->_camera->get_projection()[0][0]);
 
-	_terrain->update(_core->_camera->get_position(), 3);
+	//_terrain->update(_core->_camera->get_position(), 3);
 }
 
 void Game::draw() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glClearBufferfv(GL_COLOR, 0, CLEAR_COLOR);
 
-	_terrain->draw(_core->_camera->get_position(), 3);
+	//_terrain->draw(_core->_camera->get_position(), 3);
 
 	glfwSwapBuffers(_core->_window->get());
 

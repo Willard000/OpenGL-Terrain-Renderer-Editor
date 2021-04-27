@@ -107,6 +107,8 @@ void TerrainMesh::draw(TerrainNode* node) {
 	glUniform4f(glGetUniformLocation(_program->_id, "quad"), node->_quad.x, node->_quad.y, node->_quad.z, node->_quad.w);
 	glUniformMatrix4fv(glGetUniformLocation(_program->_id, "model"), 1, GL_FALSE, &node->_root->_transform.get_model()[0][0]);
 
+	glUniform3fv(glGetUniformLocation(_program->_id, "test_light_position"), 1, &node->_root->StencilMesh::_position[0]);
+
 	glBindBuffer(GL_ARRAY_BUFFER, _height_buffer);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * node->_heights.size(), &node->_heights[0]);
 
@@ -125,8 +127,8 @@ TerrainNode::TerrainNode(Terrain* root, TerrainNode* parent, float space, glm::v
 	_quad					( quad )
 {}
 
-void TerrainNode::subdivide(glm::vec2 position, int detail, int depth) {
-	if(depth == detail) {
+void TerrainNode::subdivide(glm::vec2 position, int depth) {
+	if(depth == _root->_depth) {
 		return;
 	}
 
@@ -136,20 +138,34 @@ void TerrainNode::subdivide(glm::vec2 position, int detail, int depth) {
 
 	for (auto& child : _children) {
 		if (child->within_range(position)) {
-			child->subdivide(position, detail, depth + 1);
+			child->subdivide(position, depth + 1);
 		}
 	}
 }
 
-void TerrainNode::draw(glm::vec2 position, int detail, int depth) {
-	if(depth == detail || !has_children()) {
+void TerrainNode::subdivide(int depth) {
+	if (depth == _root->_depth) {
+		return;
+	}
+
+	if (!has_children()) {
+		create_children();
+	}
+
+	for (auto& child : _children) {
+		child->subdivide(depth + 1);
+	}
+}
+
+void TerrainNode::draw(glm::vec2 position, int depth) {
+	if(depth == _root->_depth || !has_children()) {
 		_root->TerrainMesh::draw(this);
 		return;
 	}
 
 	for(auto& child : _children) {
 		if (child->within_range(position)) {
-			child->draw(position, detail, depth + 1);
+			child->draw(position, depth + 1);
 		}
 		else {
 			_root->TerrainMesh::draw(child.get());
@@ -157,10 +173,21 @@ void TerrainNode::draw(glm::vec2 position, int detail, int depth) {
 	}
 }
 
+void TerrainNode::draw(int depth) {
+	if (depth == _root->_depth || !has_children()) {
+		_root->TerrainMesh::draw(this);
+		return;
+	}
+
+	for (auto& child : _children) {
+		child->draw(depth + 1);
+	}
+}
+
 
 //   0------1
-//   |	    |	
-//   |	    |		
+//   |	 /  |	
+//   |  /   |		
 //   2------3
 
 void TerrainNode::create_children() {
@@ -180,143 +207,196 @@ void TerrainNode::create_children() {
 			_root, this, _space / 2.0f, quads[i]
 		);
 
-		_children[i]->generate_sub_heights(_root->_sub_indices[i]);
-		_children[i]->generate_sub_normals(_root->_sub_indices[i]);
+		_children[i]->generate_heights(_root->_sub_indices[i]);
+		_children[i]->generate_normals();
 	}
 }
 
-void TerrainNode::generate_sub_heights(int index) {
-	const auto width = _root->_width;
-	const auto p_heights = &_parent->_heights;
+TerrainTile TerrainNode::get_tile(size_t index) const {
+	if (index >= _heights.size() || _heights.size() != _normals.size()) {
+		assert(0);
+	}
+
+	TerrainTile::Vertex v0, v1, v2, v3;
+
+	v0.height = _heights[index];
+	v1.height = _heights[index + 1];
+	v2.height = _heights[index + _root->_width + 1];
+	v3.height = _heights[index + _root->_width + 2];
+
+	v0.normal = _normals[index];
+	v1.normal = _normals[index + 1];
+	v2.normal = _normals[index + _root->_width + 1];
+	v3.normal = _normals[index + _root->_width + 2];
+
+	return TerrainTile(v0, v1, v2, v3);
+}
+
+TerrainTile::Height TerrainNode::get_tile_height(size_t index) const {
+	TerrainTile::Height height;
+	index += index / _root->_width;
+
+	height._v0 = _heights[index];
+	height._v1 = _heights[index + 1];
+	height._v2 = _heights[index + _root->_width + 1];
+	height._v3 = _heights[index + _root->_width + 2];
+	return height;
+}
+
+void TerrainNode::generate_heights(int index) {
 	_heights.clear();
-	_heights.resize(p_heights->size());
-	
+	_heights.resize(_parent->_heights.size());
+
 	auto valid = [&](const size_t& i) {
-		if(i < 0 || i > p_heights->size() - 1) {
+		if(i < 0 || i > _parent->_heights.size() - 1) {
 			return false;
 		}
 		return true;
 	};
-	
+			
 	auto avg = [&](const size_t& i , const size_t& i2) {
 		std::vector<size_t> indices = { i, i2};
 		int divisor = 0;
 		GLfloat value = 0.0f;
 		for (const auto& i : indices) {
 			if (valid(i)) {
-				value += p_heights->at(i);
+				value += _parent->_heights.at(i);
 				++divisor;
 			}
 		}
-	
+			
 		return value / (GLfloat)divisor;
 	};
-	
+			
 	auto avg2 = [&](const int& i, const int& i2, const int& i3, const int& i4) {
 		std::vector<int> indices = {i, i2, i3, i4};
 		int divisor = 0;
 		GLfloat value = 0.0f;
 		for(const auto& i : indices) {
 			if (valid(i)) {
-				value += p_heights->at(i);
+				value += _parent->_heights.at(i);
 				++divisor;
 			}
 		}
-	
+			
 		return value / (GLfloat)divisor;
 	};
-	
+
 	size_t in_i = index;
 	size_t out_i = 0;
 	int count = 0;
-	
+		
 	bool even = true;
 	while (out_i < (_heights.size())) {
 		if (even) {
-			_heights.at(out_i) = p_heights->at(in_i);
+			_heights.at(out_i) = _parent->_heights.at(in_i);
 			++count;
-	
-			while (count < width) {
+		
+			while (count < _root->_width) {
 				++out_i;
 				++in_i;
 				_heights.at(out_i) = avg(in_i - 1, in_i);
 				++count;
-	
+		
 				++out_i;
-				_heights.at(out_i) = p_heights->at(in_i);
+				_heights.at(out_i) = _parent->_heights.at(in_i);
 				++count;
 			}
-	
+		
 			++in_i;
-			in_i += width / 2;
+			in_i += _root->_width / 2;
 		}
 		else {
-			_heights.at(out_i) = avg(in_i - width - 1, in_i);
+			_heights.at(out_i) = avg(in_i - _root->_width - 1, in_i);
 			++count;
-	
-			while (count < width) {
+		
+			while (count < _root->_width) {
 				++out_i;
 				++in_i;
-				_heights.at(out_i) = avg2(in_i, in_i - width - 1, in_i - 1, in_i - width - 2);
+				_heights.at(out_i) = avg2(in_i, in_i - _root->_width - 1, in_i - 1, in_i - _root->_width - 2);
 				++count;
-	
+		
 				++out_i;
-				_heights.at(out_i) = avg(in_i - width - 1, in_i);
+				_heights.at(out_i) = avg(in_i - _root->_width - 1, in_i);
 				++count;
 			}
-	
-			in_i -= width / 2;
+		
+			in_i -= _root->_width / 2;
 		}
-	
+		
 		++out_i;
 		count = 0;
 		even = !even;
 	}
 }
 
-void TerrainNode::generate_sub_normals(int index) {
-	const auto p_normals = &_parent->_normals;
-
-	_normals.clear();
-	_normals.resize(p_normals->size());
+void TerrainNode::generate_normals() {
+	TerrainFaceNormals face_normals(_root->_width * _root->_length);
 
 	const auto tri_normal = [](const glm::vec3& a, const glm::vec3& b, const glm::vec3& c) {
-		return glm::normalize(glm::cross(b - a, c - a));
+		auto cross = glm::cross(b - a, c - a);
+
+		return cross;
 	};
 
-	size_t in_i = index;
-	size_t count = 0;
-	size_t x = 0;
+	for (size_t i = 0; i < face_normals.size(); ++i) {
+		const auto tile = get_tile_height(i);
+		const auto a1 = glm::vec3(0, tile._v2, 1);
+		const auto b1 = glm::vec3(0, tile._v0, 0);
+		const auto c1 = glm::vec3(1, tile._v1, 0);
+		const auto a2 = glm::vec3(0, tile._v2, 1);
+		const auto b2 = glm::vec3(1, tile._v3, 1);
+		const auto c2 = glm::vec3(1, tile._v1, 0);
 
-	bool upper = true;
-	while (count < _normals.size()) {
-		//upper tri
-		if(upper) {
-			const auto a = glm::vec3(0, _heights[x + _root->_width + 1], 1);
-			const auto b = glm::vec3(0, _heights[x], 0);
-			const auto c = glm::vec3(1, _heights[x + 1], 0);
+		face_normals[i][0] = tri_normal(c1, b1, a1);
+		face_normals[i][1] = tri_normal(a2, b2, c2);
+	}
 
-			_normals[count] = (tri_normal(a, b, c));
-
-			++count;
-			upper = false;
+	const auto get_face_normal = [&](const int index, int index2) {
+		if (index < 0 || index >= face_normals.size()) {
+			return glm::vec3(0, 0, 0);
 		}
-		//lower tri
+		return face_normals[index][index2];
+	};
+
+	const auto smooth_normal = [&](int index) {
+		auto normal = glm::vec3(0, 0, 0);
+
+		normal += get_face_normal(index, 0);
+		normal += get_face_normal(index - _root->_width, 0);
+		normal += get_face_normal(index - _root->_width, 1);
+		normal += get_face_normal(index - _root->_width - 1, 1);
+		normal += get_face_normal(index - 1, 0);
+		normal += get_face_normal(index - 1, 1);
+
+		return normal;
+	};
+
+	_normals.resize((_root->_width + 1) * (_root->_length + 1));
+	size_t n_index = 0;
+	for (size_t i = 0; i < face_normals.size(); ++i) {
+		if (i != 0 && (i + 1) % _root->_width == 0) {
+			// right edge
+			_normals[n_index++] = smooth_normal(i);
+
+			auto normal = glm::vec3(0, 0, 0);
+			normal += get_face_normal(i, 0);
+			normal += get_face_normal(i, 1);
+			normal += get_face_normal(i - _root->_width, 1);
+
+			_normals[n_index++] = normal;
+		}
+		else if (i % _root->_width == 0) {
+			// left edge
+			auto normal = glm::vec3(0, 0, 0);
+			normal += get_face_normal(i, 0);
+			normal += get_face_normal(i - _root->_width, 0);
+			normal += get_face_normal(i - _root->_width, 1);
+
+			_normals[n_index++] = normal;
+		}
 		else {
-			const auto a = glm::vec3(0, _heights[x + _root->_width + 1], 1);
-			const auto b = glm::vec3(1, _heights[x + _root->_width + 2], 1);
-			const auto c = glm::vec3(1, _heights[x + 1], 0);
-
-			_normals[count] = (tri_normal(a, b, c));
-
-			++x;
-			++count;
-			upper = true;
-		}
-
-
-		if(count % (_root->_width * 2) == 0) {
-			++x;
+			_normals[n_index++] = smooth_normal(i);
 		}
 	}
 }
@@ -341,11 +421,12 @@ bool TerrainNode::within_range(glm::vec2 p) {
 
 //-----------------------------------------------------------------TERRAIN--------------------------------------------------------------------------------------------------------------
 
-Terrain::Terrain(int width, int length, Program* terrain_program, Program* stencil_program) :
+Terrain::Terrain(int width, int length, int depth, Program* terrain_program, Program* stencil_program) :
 	TerrainMesh				( terrain_program ),
 	StencilMesh				( stencil_program, this ),
 	_width					( width ),
 	_length					( length ),
+	_depth					( depth ),
 	_node					( this, nullptr, 1.0f, glm::vec4(0, 0, width, length) ),
 	_sub_indices			( {0, _width / 2, (_width * _length) / 2 + (_length / 2), (_width * _length / 2) + (_length / 2) + (_width / 2) } )
 {
@@ -366,11 +447,13 @@ Terrain::Terrain(int width, int length, Program* terrain_program, Program* stenc
 	}*/
 
 	//_node._heights[59] = 5;
-	
-	generate_base_normals();
+
+	_node.generate_normals();
 
 	create_height_buffer();
 	create_normal_buffer();
+
+	_node.subdivide();
 }
 
 void Terrain::create_height_buffer() {
@@ -397,56 +480,26 @@ void Terrain::create_normal_buffer() {
 	glBindTexture(GL_TEXTURE_BUFFER, _normal_texture);
 }
 
-void Terrain::update(glm::vec3 camera_position, unsigned int detail) {
-	_node.subdivide(glm::vec2(camera_position.x, camera_position.z), detail, 0);
+void Terrain::update(glm::vec3 camera_position) {
+	_node.subdivide(glm::vec2(camera_position.x, camera_position.z));
 }
 
-void Terrain::draw(glm::vec3 camera_position, unsigned int detail) {
-	_node.draw(glm::vec2(camera_position.x, camera_position.z), detail, 0);
-}
-
-void Terrain::generate_base_normals() {
-	_node._normals.clear();
-	_node._normals.resize((_width * _length) * 2);
-
-	const auto tri_normal = [](const glm::vec3& a, const glm::vec3& b, const glm::vec3& c) {
-		return glm::normalize(glm::cross(b - a, c - a));
-	};
-
-	size_t count = 0;
-	size_t x = 0;
-	bool upper = true;
-	while(count < _node._normals.size()) {
-		//upper tri
-		if (upper) {
-			const auto a = glm::vec3(0, _node._heights[x + _root->_width + 1], 1);
-			const auto b = glm::vec3(0, _node._heights[x], 0);
-			const auto c = glm::vec3(1, _node._heights[x + 1], 0);
-
-			_node._normals[count] = (tri_normal(a, b, c));
-
-			++count;
-			upper = false;
-		}
-		//lower tri
-		else {
-			const auto a = glm::vec3(0, _node._heights[x + _root->_width + 1], 1);
-			const auto b = glm::vec3(1, _node._heights[x + _root->_width + 2], 1);
-			const auto c = glm::vec3(1, _node._heights[x + 1], 0);
-
-			_node._normals[count] = (tri_normal(a, b, c));
-
-			++x;
-			++count;
-			upper = true;
-		}
-
-		if(count % (_root->_width * 2) == 0) {
-			++x;
-		}
-	}
+void Terrain::draw(glm::vec3 camera_position) {
+	_node.draw(glm::vec2(camera_position.x, camera_position.z));
 }
 
 Transform& Terrain::get_transform() {
 	return _transform;
+}
+
+void Terrain::adjust_height(size_t x, size_t y, size_t vertex, float val) {
+
+}
+
+void Terrain::adjust_height(size_t index, size_t vertex, float val) {
+
+}
+
+void Terrain::set_height(size_t x, size_t y, size_t vertex, float val) {
+
 }

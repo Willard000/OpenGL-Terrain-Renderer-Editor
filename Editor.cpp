@@ -16,8 +16,8 @@ Editor::Editor(Core* core) :
 {
 	const auto terrain_shader = _core->_shader_manager->get_program(1);
 	const auto stencil_shader = _core->_shader_manager->get_program(2);
-	_terrain = std::make_unique<Terrain>(4, 4, terrain_shader, stencil_shader);
-	_terrain->get_transform().set_scale(glm::vec3(10.0f, 10.0f, 10.0f));
+	_terrain = std::make_unique<Terrain>(100, 100, 3, terrain_shader, stencil_shader);
+	_terrain->get_transform().set_scale(glm::vec3(1.0f, 1.0f, 1.0f));
 
 	glfwSetWindowUserPointer(_core->_window->get(), this);
 	glfwSetKeyCallback(_core->_window->get(), &Editor::key_callback);
@@ -77,7 +77,7 @@ void Editor::update() {
 	_core->_window->set_title(std::to_string(_core->_clock->get_fms()));
 	_core->_camera->update();
 
-	_terrain->update(_core->_camera->get_position(), 2);
+	//_terrain->update(_core->_camera->get_position());
 	_terrain->StencilMesh::update(mouse_world_space(), _core->_camera->get_position());
 }
 
@@ -85,7 +85,7 @@ void Editor::draw() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glClearBufferfv(GL_COLOR, 0, CLEAR_COLOR);
 
-	_terrain->draw(_core->_camera->get_position(), 0);
+	_terrain->draw(_core->_camera->get_position());
 	_terrain->StencilMesh::draw(glm::vec3(0, 0, 0));
 
 	glfwSwapBuffers(_core->_window->get());

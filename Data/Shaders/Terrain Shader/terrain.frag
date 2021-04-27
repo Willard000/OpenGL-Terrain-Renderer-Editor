@@ -2,28 +2,29 @@
 
 layout (location = 0) out vec3 f_color;
 
+uniform vec3 test_light_position;
+
 in VS {
 	float height;
 	vec2 uv;
 	vec3 normal;
+
+	vec3 position;
 } source;
 
 layout (binding = 2) uniform sampler2D tile_texture;
 
 void main() {
-	//f_color = vec4(dest.height / 5, dest.height / 5, dest.height / 5, 1);
-	//vec3 color = texture(tile_texture, dest.uv).xyz;
-	vec3 color;
-	color.r = .1;
-	color.g = source.height / 5;
-	color.b = 1;
-	f_color = color;
-
-
+	vec3 color = vec3(1, 0, 0);
 	vec3 light_color = vec3(.5, .5, .5);
-	vec3 dir = normalize(vec3(1, 1, 1));
-	float dotp = dot(abs(source.normal), dir);
-	float cos_theta = clamp(dotp, .1, 1);
 
-	f_color = color * light_color * cos_theta * 5;
+	vec3 normal = normalize(source.normal);
+	vec3 light_position = vec3(0, 20, 0);
+	vec3 light_direction = normalize(light_position - source.position);
+
+	float diff = clamp(dot(normal, light_direction), 0, 1);
+	vec3 diffuse = diff * light_color;
+	vec3 ambient = vec3(.5, .5, .5);
+
+	f_color = (ambient + diffuse) * color;
 }

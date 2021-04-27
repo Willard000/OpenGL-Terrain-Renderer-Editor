@@ -26,7 +26,7 @@ public:
 	struct Settings {
 		float _field_of_view = 90.0f;
 		float _aspect = 1.0f;
-		float _z_near = 1.0f;
+		float _z_near = .1f;
 		float _z_far = 1000.0f;
 		float _h_angle = 3.14f;
 		float _v_angle = 0.0f;

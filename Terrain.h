@@ -57,46 +57,76 @@ protected:
 };
 
 typedef std::array<std::unique_ptr<TerrainNode>, 4> TerrainChildren;
+typedef std::vector<GLfloat>						TerrainHeights;
+typedef std::vector<glm::vec3>						TerrainNormals;
+typedef std::vector<std::array<glm::vec3, 2>>		TerrainFaceNormals;
+
+struct TerrainTile {
+	struct Vertex {
+		float	  height;
+		glm::vec3 normal;
+	};
+
+	struct Height {
+		float _v0, _v1, _v2, _v3;
+	};
+
+	TerrainTile(Vertex v0, Vertex v1, Vertex v2, Vertex v3) :
+		_v0 (v0), _v1 (v1), _v2 (v2), _v3 (v3){}
+
+	Vertex _v0, _v1, _v2, _v3;
+};
 
 struct TerrainNode {
 public:
 	TerrainNode(Terrain* root, TerrainNode* parent, float space, glm::vec4 quad);
 
-	void subdivide(glm::vec2 position, int detail, int depth);
-	void draw(glm::vec2 position, int detail, int depth);
+	void subdivide(glm::vec2 position, int depth = 0);
+	void subdivide(int depth = 0);
+	void draw(glm::vec2 position, int depth = 0);
+	void draw(int depth = 0);
 	void create_children();
-	void generate_sub_heights(int index);
-	void generate_sub_normals(int index);
+	void generate_heights(int index);
+	void generate_normals();
 
 	bool within_range(glm::vec2 p);
 	bool has_children();
 
-	Terrain*						_root;
-	TerrainNode*					_parent;
-	TerrainChildren					_children;
+	TerrainTile get_tile(size_t index) const;
+	TerrainTile::Height get_tile_height(size_t index) const;
+	
 
-	float							_space;
-	glm::vec4						_quad;
-	std::vector<GLfloat>			_heights;
-	std::vector<glm::vec3>			_normals;
+	Terrain*								_root;
+	TerrainNode*							_parent;
+	TerrainChildren							_children;
+
+	float									_space;
+	glm::vec4								_quad;
+	TerrainHeights							_heights;
+	TerrainNormals							_normals;
 };
 
 class Terrain : public TerrainMesh, public StencilMesh {
 public:
-	Terrain(int width, int length, Program* terrain_program, Program* stencil_program);
+	Terrain(int width, int length, int depth, Program* terrain_program, Program* stencil_program);
 
-	void draw(glm::vec3 camera_position, unsigned int detail);
+	void draw(glm::vec3 camera_position);
 	void draw_stencil(glm::vec3 position);
-	void update(glm::vec3 camera_position, unsigned int detail);
+	void update(glm::vec3 camera_position);
+
+	void adjust_height(size_t x, size_t y, size_t vertex, float val);
+	inline void adjust_height(size_t index, size_t vertex, float val);
 
 	Transform& get_transform();
 private:
 	void create_height_buffer();
 	void create_normal_buffer();
-	void generate_base_normals();
+
+	inline void set_height(size_t x, size_t y, size_t vertex, float val);
 
 	int								_width;
 	int								_length;
+	int								_depth;
 	std::array<int, 4>				_sub_indices;
 	GLuint							_height_map;
 
