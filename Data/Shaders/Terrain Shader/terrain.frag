@@ -15,7 +15,7 @@ in VS {
 layout (binding = 2) uniform sampler2D tile_texture;
 
 void main() {
-	vec3 color = vec3(1, 0, 0);
+	vec3 color = texture(tile_texture, source.uv).xyz;
 	vec3 light_color = vec3(.5, .5, .5);
 
 	vec3 normal = normalize(source.normal);

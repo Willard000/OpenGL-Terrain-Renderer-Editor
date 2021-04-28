@@ -74,7 +74,7 @@ void main() {
             h = get_height_upper(vec2(x, z), index);
         }
 
-        y = h + 0.1f;
+        y = h + 0.01f;
 
         vec4 offset = vec4(x, y, z, 1.0);
         gl_Position = projection * view * model * offset;

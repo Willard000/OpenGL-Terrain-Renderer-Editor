@@ -16,8 +16,8 @@ Editor::Editor(Core* core) :
 {
 	const auto terrain_shader = _core->_shader_manager->get_program(1);
 	const auto stencil_shader = _core->_shader_manager->get_program(2);
-	_terrain = std::make_unique<Terrain>(100, 100, 3, terrain_shader, stencil_shader);
-	_terrain->get_transform().set_scale(glm::vec3(1.0f, 1.0f, 1.0f));
+	_terrain = std::make_unique<Terrain>(100, 100, 0, terrain_shader, stencil_shader);
+	_terrain->get_transform().set_scale(glm::vec3(10.0f, 10.0f, 10.0f));
 
 	glfwSetWindowUserPointer(_core->_window->get(), this);
 	glfwSetKeyCallback(_core->_window->get(), &Editor::key_callback);
@@ -55,6 +55,13 @@ bool Editor::handle_input() {
 	}
 	if (glfwGetKey(_core->_window->get(), GLFW_KEY_E)) {
 		_core->_camera->move(CAMERA_UP, (float)_core->_clock->get_time());
+	}
+
+	if(glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_LEFT)) {
+		_terrain->StencilMesh::raise_height(1.0f);
+	}
+	if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_RIGHT)) {
+		_terrain->StencilMesh::raise_height(-1.0f);
 	}
 
 	return glfwWindowShouldClose(_core->_window->get()) || glfwGetKey(_core->_window->get(), GLFW_KEY_ESCAPE);

@@ -12,5 +12,5 @@ out VS {
 
 void main() {
 	dest.vertex = vec3(position.x, position.y, position.z);
-	gl_Position = projection * view * model * vec4(position.x, 0, position.z, 1.0);
+	gl_Position = projection * view * model * vec4(position.x, position.y, position.z, 1.0);
 }

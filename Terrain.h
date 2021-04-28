@@ -21,6 +21,8 @@ public:
 
 	void update(glm::vec3 mouse_vector, glm::vec3 offset);
 	void draw(glm::vec3 position);
+
+	void raise_height(float val);
 protected:
 	void create_buffers();
 
@@ -89,6 +91,12 @@ public:
 	void generate_heights(int index);
 	void generate_normals();
 
+	std::array<glm::vec3, 2> calc_face_normal(int index) const;
+	glm::vec3 get_face_normal(int index, int triangle) const;
+	glm::vec3 generate_normal(int index, int edge) const;
+
+	TerrainNode* find_node(float* x, float* z);
+
 	bool within_range(glm::vec2 p);
 	bool has_children();
 
@@ -104,6 +112,7 @@ public:
 	glm::vec4								_quad;
 	TerrainHeights							_heights;
 	TerrainNormals							_normals;
+	TerrainFaceNormals						_face_normals;
 };
 
 class Terrain : public TerrainMesh, public StencilMesh {
@@ -114,15 +123,17 @@ public:
 	void draw_stencil(glm::vec3 position);
 	void update(glm::vec3 camera_position);
 
-	void adjust_height(size_t x, size_t y, size_t vertex, float val);
-	inline void adjust_height(size_t index, size_t vertex, float val);
+	float find_height(glm::vec3 position, glm::vec3 offset);
+	bool  above_terrain(glm::vec3 position, glm::vec3 offset, float height);
+	float exact_height(float x, float y);
 
 	Transform& get_transform();
 private:
 	void create_height_buffer();
 	void create_normal_buffer();
 
-	inline void set_height(size_t x, size_t y, size_t vertex, float val);
+	void raise_height(int x, int z, float val);
+	void recalc_normals(int x, int z);
 
 	int								_width;
 	int								_length;
