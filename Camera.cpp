@@ -7,7 +7,7 @@
 
 #include "Program.h"
 
-constexpr float BASE_SPEED = 1000000.0f;
+constexpr float BASE_SPEED = 100000.0f;
 constexpr float LOCKED_V_ANGLE = -1.0f;
 
 Camera::Camera(Window* window, Settings s) :

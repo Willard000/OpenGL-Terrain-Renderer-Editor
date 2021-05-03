@@ -3,17 +3,22 @@
 #include <GL/gl3w.h>
 
 #include <cstdint>
+#include <fstream>
 
 #include <SOIL/SOIL2.h>
 #include <iostream>
 
 #include "PerlinNoise.hpp"
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 //-----------------------------------------------------------STENCIL MESH---------------------------------------------------------------------------------------------------------
 
 StencilMesh::StencilMesh(Program* program, Terrain* root) :
 	_program		( program ),
-	_root			( root )
+	_root			( root ),
+	_radius			( 1.0f )
 {
 	create_buffers();
 }
@@ -35,6 +40,7 @@ void StencilMesh::draw(glm::vec3 position) {
 	glUniform1i(glGetUniformLocation(_program->_id, "width"), _root->_width);
 	glUniform1i(glGetUniformLocation(_program->_id, "length"), _root->_length);
 	glUniform3fv(glGetUniformLocation(_program->_id, "position"), 1, &_position[0]);
+	glUniform1f(glGetUniformLocation(_program->_id, "radius"), _radius);
 
 	glBindBuffer(GL_ARRAY_BUFFER, _root->_height_buffer);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * _root->_node._heights.size(), &_root->_node._heights[0]);
@@ -52,28 +58,107 @@ void StencilMesh::update(glm::vec3 mouse_vector, glm::vec3 offset) {
 	_position = glm::vec3(x, height, z);
 }
 
-void StencilMesh::raise_height(float val) {
-	std::vector<std::array<int, 2>> tiles_raised;
+std::vector<std::array<int, 2>> StencilMesh::tiles_within_radius() {
+	std::vector<std::array<int, 2>> tiles;
 
-	int start_x = floor(_position.x);
-	int start_z = floor(_position.z);
+	int start_x = floor(_position.x - _radius);
+	int start_z = floor(_position.z - _radius);
 
-	for(int x = start_x; x < start_x + 2; ++x) {
+	for (int x = start_x; x < start_x + 2 * _radius; ++x) {
 		const auto dist_x = x - _position.x;
-		for(int z = start_z; z < start_z + 2; ++z) {
+		for (int z = start_z; z < start_z + 2 * _radius; ++z) {
 			const auto dist_z = z - _position.z;
 
 			const auto length = glm::length(glm::vec2(dist_x, dist_z));
-			if(length <= 1) {
-				_root->raise_height(x, z, val);
-				tiles_raised.push_back({ x, z });
+			if (length <= _radius) {
+				tiles.push_back({ x, z });
 			}
 		}
 	}
 
-	for(auto& tile : tiles_raised) {
+	return tiles;
+}
+
+// flags F_RAISE, F_SET, F_AVERAGE
+void StencilMesh::raise_height(float val, int flag) {
+	const auto tiles = tiles_within_radius();
+
+	if(flag == F_AVERAGE) {
+		float avg = 0.0f;
+		for (auto &t : tiles) {
+			if (t[0] >= 0 && t[1] >= 0 && t[0] < _root->_width && t[1] < _root->_length) {
+				auto tile_heights = _root->_node.get_tile_height(t[0] + t[1] * _root->_width);
+				avg += tile_heights._v0;
+			}
+		}
+		avg /= tiles.size();
+		val = avg;
+	}
+
+	for(auto& tile : tiles) {
+		_root->raise_height(tile[0], tile[1], val, flag);
 		_root->recalc_normals(tile[0], tile[1]);
 	}
+}
+
+//void StencilMesh::paint_blend_map(int texture, float weight) {
+//	for (int i = 0; i <= 64 * _radius; ++i) {
+//		const float ang = M_PI * 2.0 / (127.0 * _radius) * i;
+//		const float x = cos(ang) * _radius + _position.x;
+//		const float z = -sin(ang) * _radius + _position.z;
+//		float length = abs(sin(ang) * _radius);
+//
+//		for(float i = z; i < z + length * 2; i += 0.001f) {
+//			_root->paint_blend_map(x / (float)_root->_width, i / (float)_root->_length, texture, weight);
+//		}
+//	}
+//
+//	_root->create_blend_texture();
+//}
+
+void StencilMesh::paint_blend_map(int texture, float weight) {
+	const int start_x = glm::mix(0, BLEND_MAP_SIZE - 1, (_position.x - _radius) / (float)_root->_width);
+	const int start_z = glm::mix(0, BLEND_MAP_SIZE - 1, (_position.z - _radius) / (float)_root->_length);
+
+	const int position_t_coord_x = glm::mix(0, BLEND_MAP_SIZE - 1, _position.x / (float)_root->_width);
+	const int position_t_coord_z = glm::mix(0, BLEND_MAP_SIZE - 1, _position.z / (float)_root->_length);
+	const int radius_t_coord = glm::mix(0, BLEND_MAP_SIZE - 1, _radius / (float)_root->_width);
+
+	glm::vec2 distance;
+	for (int x = start_x; x < start_x + 2 * radius_t_coord; ++x) {
+		if(x < 0 || x >= BLEND_MAP_SIZE) {
+			continue;
+		}
+
+		distance.x = x - position_t_coord_x;
+
+		for (int z = start_z; z < start_z + 2 * radius_t_coord; ++z) {
+			if(z < 0 || z >= BLEND_MAP_SIZE) {
+				continue;
+			}
+
+			distance.y = z - position_t_coord_z;
+
+			const auto length = glm::length(distance);
+			if(length <= radius_t_coord) {
+				_root->_blend_map[z][x][0] = 1.0f;
+			}
+		}
+	}
+
+
+	_root->create_blend_texture();
+}
+
+void StencilMesh::set_radius(float radius) {
+	if(radius <= 0.0f) {
+		return;
+	}
+	_radius = radius;
+}
+
+float StencilMesh::get_radius() const {
+	return _radius;
 }
 
 //-----------------------------------------------------------TERRAIN MESH---------------------------------------------------------------------------------------------------------
@@ -83,6 +168,11 @@ constexpr size_t TILE_VERTICES_SIZE = 12;
 constexpr GLfloat TILE_VERTICES[] = {
 	0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
 	0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f
+};
+
+constexpr GLfloat TILE_UVS[] = {
+	0.0f, 1.0f, 0.0f, 0.0f, .5f, 0.0f,
+	0.0f, 1.0f, .5f, 1.0f, .5f, 0.0f
 };
 
 TerrainMesh::TerrainMesh(Program* program) :
@@ -105,7 +195,7 @@ void TerrainMesh::create_buffers() {
 
 	glCreateBuffers(1, &_uv_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, _uv_buffer);
-	glNamedBufferStorage(_uv_buffer, sizeof(GLfloat) * TILE_VERTICES_SIZE, TILE_VERTICES, 0);
+	glNamedBufferStorage(_uv_buffer, sizeof(GLfloat) * TILE_VERTICES_SIZE, TILE_UVS, 0);
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
 }
@@ -504,27 +594,13 @@ Terrain::Terrain(int width, int length, int depth, Program* terrain_program, Pro
 	assert(width >= 0 && length >= 0);
 	assert(float(width) / 2.0 == width / 2);
 
-	_node._heights.resize((_width + 1) * (_length + 1));
-
-	/*const siv::PerlinNoise perlin(234);
-	for (int i = 0; i < (_width + 1); ++i) {
-		for (int k = 0; k < (_length + 1); ++k) {
-			_node._heights[i * k] = GLfloat(5 * perlin.accumulatedOctaveNoise2D_0_1(i / _width / 1, k / _length / 5, 25));
+	for(auto& row : _blend_map) {
+		for(auto&p : row) {
+			//p = glm::vec3((rand() % 100) / 100.0f, (rand() % 100) / 100.0f, (rand() % 100) / 100.0f);
 		}
-	}*/
+	}
 
-	/*for(auto& height : _node._heights) {
-		height = rand() % 5;
-	}*/
-
-	//_node._heights[59] = 5;
-
-	_node.generate_normals();
-
-	create_height_buffer();
-	create_normal_buffer();
-
-	_node.subdivide();
+	create_blend_texture();
 }
 
 void Terrain::create_height_buffer() {
@@ -551,6 +627,22 @@ void Terrain::create_normal_buffer() {
 	glBindTexture(GL_TEXTURE_BUFFER, _normal_texture);
 }
 
+void Terrain::create_blend_texture() {
+	glBindVertexArray(TerrainMesh::_vao);
+	glDeleteTextures(1, &_blend_texture);
+	glGenTextures(1, &_blend_texture);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, _blend_texture);
+
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, BLEND_MAP_SIZE, BLEND_MAP_SIZE, 0, GL_RGB, GL_FLOAT, &_blend_map[0][0][0]);
+	glGenerateMipmap(GL_TEXTURE_2D);
+}
+
 void Terrain::update(glm::vec3 camera_position) {
 	_node.subdivide(glm::vec2(camera_position.x, camera_position.z));
 }
@@ -563,19 +655,47 @@ Transform& Terrain::get_transform() {
 	return _transform;
 }
 
-void Terrain::raise_height(int x, int z, float val) {
+void Terrain::raise_height(int x, int z, float val, int flag) {
 	int index = x + z * _width;
 	int v_index = x + z * _width + z;
 
-	if(index >= (_width * _length) && index <= (_width * _length) + _width) {
+	if (index >= (_width * _length) && index <= (_width * _length) + _width) {
 		index -= index % (_width * _length) + 1;
 	}
 
-	if(x < 0 || z < 0 || x > _width || v_index >= _node._heights.size()) {
+	if (x < 0 || z < 0 || x > _width || v_index >= _node._heights.size()) {
 		return;
 	}
 
-	_node._heights[v_index] += val;
+	switch(flag) {
+	case F_RAISE:
+		_node._heights[v_index] += val;
+		break;
+	case F_SET:
+		_node._heights[v_index] = val;
+		break;
+	case F_AVERAGE:
+		_node._heights[v_index] = val;
+		break;
+	default:
+		break;
+	}
+}
+
+void Terrain::paint_blend_map(float x, float z, int texture, float weight) {
+	if(x < 0.0f || x > 1.0f || z < 0.0f || z > 1.0f) {
+		return;
+	}
+
+	int x_index = glm::mix(0, BLEND_MAP_SIZE - 1, x);
+	int z_index = glm::mix(0, BLEND_MAP_SIZE - 1, z);
+
+	switch (texture) {
+	case B_TEXTURE0:	_blend_map[z_index][x_index].r += weight;			break;
+	case B_TEXTURE1:	_blend_map[z_index][x_index].g += weight;			break;
+	case B_TEXTURE2:	_blend_map[z_index][x_index].b += weight;			break;
+	default:																break;
+	}
 }
 
 void Terrain::recalc_normals(int x, int z) {
@@ -614,10 +734,14 @@ void Terrain::recalc_normals(int x, int z) {
 
 float Terrain::find_height(glm::vec3 position, glm::vec3 offset) {
 	float height = offset.y;
-	const float increment = 0.01f;
 
 	while(above_terrain(position, offset, height) && height > 0) {
-		height -= increment;
+		height -= 1.0f;
+	}
+
+	height += 1.0f;
+	while (above_terrain(position, offset, height) && height > 0) {
+		height -= 0.01f;
 	}
 
 	if (height < 0.0f) height = 0.0f;
@@ -672,5 +796,38 @@ float Terrain::exact_height(float x, float z) {
 
 	float h = a.y - ((dx - a.x) * n.x + (dz - a.z) * n.z) / n.y;
 
-	return h;
+	return h * _transform.get_scale().y;
+}
+
+void Terrain::save(std::string file) {
+	std::ofstream terrain_file(file.c_str(), std::ios::trunc | std::ios::binary);
+
+	terrain_file.write(static_cast<const char*>(static_cast<void*>(&_width)), 4);
+	terrain_file.write(static_cast<const char*>(static_cast<void*>(&_length)), 4);
+	terrain_file.write(static_cast<const char*>(static_cast<void*>(&_node._heights[0])), sizeof(GLfloat) * _node._heights.size());
+
+	terrain_file.close();
+}
+
+void Terrain::load(std::string file) {
+	std::ifstream terrain_file(file.c_str(), std::ios::binary);
+
+	if (terrain_file.is_open()) {
+		terrain_file.read(static_cast<char*>(static_cast<void*>(&_width)), 4);
+		terrain_file.read(static_cast<char*>(static_cast<void*>(&_length)), 4);
+		_node._heights.resize((_width + 1) * (_length + 1));
+		terrain_file.read(static_cast<char*>(static_cast<void*>(&_node._heights[0])), sizeof(GLfloat) * _node._heights.size());
+
+		terrain_file.close();
+	}
+
+	_node._quad = glm::vec4(0, 0, _width, _length);
+	_sub_indices = { 0, _width / 2, (_width * _length) / 2 + (_length / 2), (_width * _length / 2) + (_length / 2) + (_width / 2) };
+
+	_node.generate_normals();
+
+	_node.subdivide();
+
+	create_height_buffer();
+	create_normal_buffer();
 }

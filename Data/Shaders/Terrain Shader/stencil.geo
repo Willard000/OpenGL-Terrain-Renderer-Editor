@@ -9,6 +9,7 @@ uniform mat4 model;
 
 uniform int width;
 uniform int length;
+uniform float radius;
 
 layout (binding = 0) uniform samplerBuffer heights;
 
@@ -58,7 +59,7 @@ void main() {
 
         float x = cos(ang) + source[0].vertex.x;
         float y = source[0].vertex.y;
-        float z = -sin(ang) + source[0].vertex.z;
+        float z = -sin(ang) * radius + source[0].vertex.z;
 
         float dx = x - floor(x);
         float dz = z - floor(z);
@@ -76,7 +77,9 @@ void main() {
 
         y = h + 0.01f;
 
-        vec4 offset = vec4(x, y, z, 1.0);
+        float fx = cos(ang) * radius + source[0].vertex.x;
+        float fz = -sin(ang) * radius + source[0].vertex.z;
+        vec4 offset = vec4(fx, y, fz, 1.0);
         gl_Position = projection * view * model * offset;
         EmitVertex();
     }

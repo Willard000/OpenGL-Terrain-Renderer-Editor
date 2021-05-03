@@ -25,6 +25,7 @@ out VS {
 	vec3 normal;
 
 	vec3 position;
+	vec2 position_alpha;
 } dest;
 
 float get_height(const int vertex) {
@@ -78,5 +79,6 @@ void main() {
 	dest.uv = uv;
 	dest.normal = normal;
 
-	dest.position = (vec4(x, height, z, 1.0)).xyz;
+	dest.position = vec3(x, height, z);
+	dest.position_alpha = vec2(x / float(width), z / float(length));
 }

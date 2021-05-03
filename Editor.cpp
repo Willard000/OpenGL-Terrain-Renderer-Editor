@@ -17,10 +17,12 @@ Editor::Editor(Core* core) :
 	const auto terrain_shader = _core->_shader_manager->get_program(1);
 	const auto stencil_shader = _core->_shader_manager->get_program(2);
 	_terrain = std::make_unique<Terrain>(100, 100, 0, terrain_shader, stencil_shader);
-	_terrain->get_transform().set_scale(glm::vec3(10.0f, 10.0f, 10.0f));
+	_terrain->get_transform().set_scale(glm::vec3(1.0f, 1.0f, 1.0f));
+	_terrain->load("Data\\terrain.txt");
 
 	glfwSetWindowUserPointer(_core->_window->get(), this);
 	glfwSetKeyCallback(_core->_window->get(), &Editor::key_callback);
+	glfwSetScrollCallback(_core->_window->get(), &Editor::scroll_callback);
 
 	glEnable(GL_DEPTH_TEST);
 }
@@ -57,11 +59,31 @@ bool Editor::handle_input() {
 		_core->_camera->move(CAMERA_UP, (float)_core->_clock->get_time());
 	}
 
-	if(glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_LEFT)) {
-		_terrain->StencilMesh::raise_height(1.0f);
+	if (_edit_mode == EDIT_TERRAIN) {
+		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_LEFT)) {
+			_terrain->StencilMesh::raise_height(.1f, 0);
+		}
+		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_RIGHT)) {
+			_terrain->StencilMesh::raise_height(-.1f, 0);
+		}
+		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_MIDDLE)) {
+			_terrain->StencilMesh::raise_height(0.0f, 1);
+		}
+		if (glfwGetKey(_core->_window->get(), GLFW_KEY_R)) {
+			_terrain->StencilMesh::raise_height(0.0f, 2);
+		}
 	}
-	if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_RIGHT)) {
-		_terrain->StencilMesh::raise_height(-1.0f);
+
+	if (_edit_mode == EDIT_TEXTURE) {
+		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_LEFT)) {
+			_terrain->StencilMesh::paint_blend_map(B_TEXTURE0, 0.1f);
+		}
+		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_RIGHT)) {
+			_terrain->StencilMesh::paint_blend_map(B_TEXTURE1, 0.1f);
+		}
+		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_MIDDLE)) {
+			_terrain->StencilMesh::paint_blend_map(B_TEXTURE2, 0.1f);
+		}
 	}
 
 	return glfwWindowShouldClose(_core->_window->get()) || glfwGetKey(_core->_window->get(), GLFW_KEY_ESCAPE);
@@ -76,6 +98,45 @@ void Editor::key_callback(GLFWwindow* window, int key, int scancode, int action,
 
 	if (key == GLFW_KEY_1 && action == GLFW_PRESS) {
 		editor->_core->_camera->set_mode(CAMERA_TOGGLE);
+	}
+
+	if (key == GLFW_KEY_2 && action == GLFW_PRESS) {
+		editor->set_mode(EDIT_TERRAIN);
+	}
+
+	if(key == GLFW_KEY_3 && action == GLFW_PRESS) {
+		editor->set_mode(EDIT_TEXTURE);
+	}
+
+	if(key == GLFW_KEY_Z && action == GLFW_PRESS) {
+		const auto radius = editor->_terrain->StencilMesh::get_radius();
+		if (radius > 1) {
+			editor->_terrain->StencilMesh::set_radius(radius - 1);
+		}
+	}
+	if (key == GLFW_KEY_X && action == GLFW_PRESS) {
+		editor->_terrain->StencilMesh::set_radius(editor->_terrain->StencilMesh::get_radius() + 1);
+	}
+
+	if (key == GLFW_KEY_P && action == GLFW_PRESS) {
+		editor->_terrain->save("Data\\terrain.txt");
+		std::cout << "Terrain Saved \n";
+	}
+}
+
+void Editor::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+	if (!glfwGetWindowAttrib(window, GLFW_FOCUSED)) {
+		return;
+	}
+
+	auto editor = static_cast<Editor*>(glfwGetWindowUserPointer(window));
+
+	if(yoffset > 0) {
+		editor->_terrain->set_radius(editor->_terrain->get_radius() + 0.1f);
+	}
+
+	if(yoffset < 0) {
+		editor->_terrain->set_radius(editor->_terrain->get_radius() - 0.1f);
 	}
 }
 
@@ -120,4 +181,12 @@ glm::vec3 Editor::mouse_world_space() {
 
 	//	normalized world space	 inverse view						 view_space
 	return glm::normalize(glm::inverse(_core->_camera->get_view()) * view_space);
+}
+
+void Editor::set_mode(int mode) {
+	switch(mode) {
+	case EDIT_TERRAIN: _edit_mode = EDIT_TERRAIN; break;
+	case EDIT_TEXTURE: _edit_mode = EDIT_TEXTURE; break;
+	default:									  break;
+	}
 }

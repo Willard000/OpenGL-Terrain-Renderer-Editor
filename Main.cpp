@@ -21,6 +21,9 @@
 
 int main() {
 
+	HWND console_window = GetConsoleWindow();
+	SetWindowPos(console_window, 0, -800, 300, 800, 500, 0);
+
 	if(!glfwInit()) {
 		assert(0);
 	}
@@ -35,10 +38,19 @@ int main() {
 	core._state_manager = std::make_unique<StateManager>();
 	core._shader_manager = std::make_unique<ShaderManager>(core._camera.get());
 
-	//core._state_manager->add(std::make_unique<Game>(&core));
-	core._state_manager->add(std::make_unique<Editor>(&core));
-	core._state_manager->run();
+	while (1) {
+		glfwPollEvents();
+		if(glfwGetKey(core._window->get(), GLFW_KEY_1)) {
+			core._state_manager->add(std::make_unique<Game>(&core));
+			break;
+		}
+		if(glfwGetKey(core._window->get(), GLFW_KEY_2)) {
+			core._state_manager->add(std::make_unique<Editor>(&core));
+			break;
+		}
+	}
 
+	core._state_manager->run();
 	/*auto world = std::make_unique<Scene>();
 	auto object = world->new_child();
 

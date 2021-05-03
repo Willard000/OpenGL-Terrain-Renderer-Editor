@@ -12,6 +12,16 @@
 #include "Program.h"
 #include "Transform.h"
 
+#define F_RAISE 0
+#define F_SET 1
+#define F_AVERAGE 2
+
+#define B_TEXTURE0 0
+#define B_TEXTURE1 1
+#define B_TEXTURE2 2
+
+#define BLEND_MAP_SIZE 1028
+
 class Terrain;
 struct TerrainNode;
 
@@ -22,11 +32,18 @@ public:
 	void update(glm::vec3 mouse_vector, glm::vec3 offset);
 	void draw(glm::vec3 position);
 
-	void raise_height(float val);
+	std::vector<std::array<int, 2>> tiles_within_radius();
+
+	void paint_blend_map(int texture, float weight);
+	void raise_height(float val, int flag);
+
+	void set_radius(float radius);
+	float get_radius() const;
 protected:
 	void create_buffers();
 
 	glm::vec3						_position;
+	float							_radius;
 
 	GLuint							_vao;
 	GLuint							_vertex_buffer;
@@ -115,6 +132,8 @@ public:
 	TerrainFaceNormals						_face_normals;
 };
 
+typedef std::array<std::array<glm::vec3, BLEND_MAP_SIZE>, BLEND_MAP_SIZE> BlendMap;
+
 class Terrain : public TerrainMesh, public StencilMesh {
 public:
 	Terrain(int width, int length, int depth, Program* terrain_program, Program* stencil_program);
@@ -128,11 +147,17 @@ public:
 	float exact_height(float x, float y);
 
 	Transform& get_transform();
+
+	void save(std::string file);
+	void load(std::string file);
 private:
 	void create_height_buffer();
+	void create_blend_texture();
 	void create_normal_buffer();
 
-	void raise_height(int x, int z, float val);
+	void raise_height(int x, int z, float val, int flag);
+	void paint_blend_map(float x, float z, int texture, float weight);
+
 	void recalc_normals(int x, int z);
 
 	int								_width;
@@ -140,6 +165,9 @@ private:
 	int								_depth;
 	std::array<int, 4>				_sub_indices;
 	GLuint							_height_map;
+	GLuint							_blend_buffer;
+	GLuint							_blend_texture;
+	BlendMap						_blend_map;
 
 	TerrainNode						_node;
 	Transform						_transform;

@@ -20,6 +20,8 @@ void StateManager::run() {
 
 			current_state->draw();
 		}
+
+		_states.pop_back();
 	}
 }
 
