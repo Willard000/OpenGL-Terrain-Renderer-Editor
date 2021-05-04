@@ -3,9 +3,9 @@
 #include <cassert>
 
 Window::Window() :
-	_window				( glfwCreateWindow(1200, 900, "...", nullptr, nullptr) )
+	_window				( glfwCreateWindow(1600, 900, "...", nullptr, nullptr) )
 {
-	glfwSetWindowPos(_window, 300, 100);
+	glfwSetWindowPos(_window, 150, 100);
 	glfwMakeContextCurrent(_window);
 	glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
