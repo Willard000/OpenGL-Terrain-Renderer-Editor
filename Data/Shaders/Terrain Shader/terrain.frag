@@ -25,17 +25,17 @@ void main() {
 	//vec3 color = vec3(source.height / 50, .6, .2);
 	vec3 color;
 
-	//if(abs(normalize(source.normal).y) < .99) {
-	//	color = vec3(source.height/ 100, source.height/ 100, .2);
-	//}
-	//else {
-	//	color = vec3(0, .6, source.height / 20);
-	//}
+	if(abs(normalize(source.normal).y) < .5) {
+		color = texture(tile_texture4, source.uv).rgb;
+	}
+	else {
+		color = texture(tile_texture1, source.uv).rgb;
+	}
 
 	vec2 blend_map_position = vec2(source.position_alpha.x, source.position_alpha.y);
 	vec4 blend_map_texture = texture(blend_map, blend_map_position);
 	float back_texture_amount = 1 - (blend_map_texture.r + blend_map_texture.g + blend_map_texture.b + blend_map_texture.a);
-	color = vec3(.8, .8, .8) * back_texture_amount;
+	color = color * back_texture_amount;
 
 	vec3 t_color1 = texture(tile_texture1, source.uv).rgb * texture(blend_map, blend_map_position).r;
 	vec3 t_color2 = texture(tile_texture2, source.uv).rgb * texture(blend_map, blend_map_position).g;
