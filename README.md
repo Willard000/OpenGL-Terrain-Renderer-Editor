@@ -55,9 +55,9 @@ The heights are maped per vertex row not per tile since there is overlap between
 
 ### Normal Map
 
-Normals are stored the same way as the height map. To calculated the normal we first calculate the face normal for each triangle then averaging the normals from all adjacent triangles to a vertex.
+Normals are stored the same way as the height map. To calculated the normal we first calculate the face normal for each triangle then average the normals from all adjacent triangles to a vertex.
 
-We pass the height and normal map as a texture buffer to glsl and acess the height and normal of any vertex with a function like this.
+We pass the height and normal map as a texture buffer to glsl and access the height and normal of any vertex with a function like this.
 
 ```glsl
 const int vertex_indices[6] = {2, 0, 1, 2, 3, 1};
@@ -111,7 +111,7 @@ Level 0 detail wireframe
 Level 3 detail wireframe
 ![](https://github.com/willardt/3.31/blob/main/ss/terrain7.png?raw=true "")
 
-Note that when we increase the level of detail we have no data for the height values between vertices. To find this data I approximate the average height of the new vertices. 
+Note that when we increase the level of detail we have no data for the height values between vertices. To find this data I approximate the height by averaging the heights of the old vertices. 
 
 Here is how a tile is divided into 4:
 
