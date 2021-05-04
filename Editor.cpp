@@ -163,7 +163,7 @@ void Editor::draw() {
 	glClearBufferfv(GL_COLOR, 0, CLEAR_COLOR);
 
 	_terrain->draw(_core->_camera->get_position());
-	_terrain->StencilMesh::draw(glm::vec3(0, 0, 0));
+	//_terrain->StencilMesh::draw(glm::vec3(0, 0, 0));
 
 	glfwSwapBuffers(_core->_window->get());
 
