@@ -17,7 +17,7 @@ Editor::Editor(Core* core) :
 	const auto terrain_shader = _core->_shader_manager->get_program(1);
 	const auto stencil_shader = _core->_shader_manager->get_program(2);
 	_terrain = std::make_unique<Terrain>(100, 100, 0, terrain_shader, stencil_shader);
-	_terrain->get_transform().set_scale(glm::vec3(1.0f, 1.0f, 1.0f));
+	_terrain->get_transform().set_scale(glm::vec3(10.0f, 10.0f, 10.0f));
 	_terrain->load("Data\\terrain.txt");
 
 	glfwSetWindowUserPointer(_core->_window->get(), this);
@@ -25,6 +25,9 @@ Editor::Editor(Core* core) :
 	glfwSetScrollCallback(_core->_window->get(), &Editor::scroll_callback);
 
 	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+	//glEnable(GL_CULL_FACE);
+	//glCullFace(GL_FRONT);
 }
 
 bool Editor::handle_input() {
@@ -61,10 +64,10 @@ bool Editor::handle_input() {
 
 	if (_edit_mode == EDIT_TERRAIN) {
 		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_LEFT)) {
-			_terrain->StencilMesh::raise_height(.1f, 0);
+			_terrain->StencilMesh::raise_height(.01f, 0);
 		}
 		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_RIGHT)) {
-			_terrain->StencilMesh::raise_height(-.1f, 0);
+			_terrain->StencilMesh::raise_height(-.01f, 0);
 		}
 		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_MIDDLE)) {
 			_terrain->StencilMesh::raise_height(0.0f, 1);
@@ -81,8 +84,14 @@ bool Editor::handle_input() {
 		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_RIGHT)) {
 			_terrain->StencilMesh::paint_blend_map(B_TEXTURE1, 0.1f);
 		}
-		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_MIDDLE)) {
+		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_4)) {
 			_terrain->StencilMesh::paint_blend_map(B_TEXTURE2, 0.1f);
+		}
+		if(glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_5)) {
+			_terrain->StencilMesh::paint_blend_map(B_TEXTURE3, 0.1f);
+		}
+		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_MIDDLE)) {
+			_terrain->StencilMesh::paint_blend_map(B_TEXTURE0, 0, BLEND_CLEAR);
 		}
 	}
 
@@ -132,11 +141,11 @@ void Editor::scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 	auto editor = static_cast<Editor*>(glfwGetWindowUserPointer(window));
 
 	if(yoffset > 0) {
-		editor->_terrain->set_radius(editor->_terrain->get_radius() + 0.1f);
+		editor->_terrain->set_radius(editor->_terrain->get_radius() - 0.1f);
 	}
 
 	if(yoffset < 0) {
-		editor->_terrain->set_radius(editor->_terrain->get_radius() - 0.1f);
+		editor->_terrain->set_radius(editor->_terrain->get_radius() + 0.1f);
 	}
 }
 

@@ -80,5 +80,6 @@ void main() {
 	dest.normal = normal;
 
 	dest.position = vec3(x, height, z);
-	dest.position_alpha = vec2(x / float(width), z / float(length));
+
+	dest.position_alpha = vec2(x / width, z / length);
 }

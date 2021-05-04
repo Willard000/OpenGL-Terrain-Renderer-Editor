@@ -47,7 +47,7 @@ public:
 
 	glm::mat4 get_view() const;
 	glm::mat4 get_projection() const;
-	glm::vec3 get_position() const;
+	glm::vec3 &get_position() ;
 
 	int get_mode() const;
 private:

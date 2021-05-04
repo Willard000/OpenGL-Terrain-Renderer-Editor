@@ -166,7 +166,7 @@ glm::mat4 Camera::get_projection() const {
 	return _projection;
 }
 
-glm::vec3 Camera::get_position() const {
+glm::vec3 &Camera::get_position() {
 	return _position;
 }
 

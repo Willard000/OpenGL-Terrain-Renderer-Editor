@@ -13,25 +13,36 @@ in VS {
 	vec2 position_alpha;
 } source;
 
-layout (binding = 2) uniform sampler2D tile_texture;
-layout (binding = 3) uniform sampler2D blend_map;
+layout (binding = 2) uniform sampler2D blend_map;
+
+layout (binding = 3) uniform sampler2D dirt_texture;
+layout (binding = 4) uniform sampler2D ferns_texture;
+layout (binding = 5) uniform sampler2D road_texture;
+layout (binding = 6) uniform sampler2D roots_texture;
 
 void main() {
 	//vec3 color = texture(tile_texture, source.uv).xyz;
 	//vec3 color = vec3(source.height / 50, .6, .2);
 	vec3 color;
-	if(abs(normalize(source.normal).y) < .99) {
-		color = vec3(source.height/ 100, source.height/ 100, .2);
-		color = texture(tile_texture, vec2(source.uv.x + .5, source.uv.y)).xyz;
-	}
-	else {
-		color = vec3(0, .6, source.height / 20);
-		color = texture(tile_texture, source.uv).xyz;
-	}
 
-	vec2 new_uv = vec2(source.position_alpha.x, source.position_alpha.y);
+	//if(abs(normalize(source.normal).y) < .99) {
+	//	color = vec3(source.height/ 100, source.height/ 100, .2);
+	//}
+	//else {
+	//	color = vec3(0, .6, source.height / 20);
+	//}
 
-	color = texture(blend_map, new_uv).rgb;
+	vec2 blend_map_position = vec2(source.position_alpha.x, source.position_alpha.y);
+	vec4 blend_map_texture = texture(blend_map, blend_map_position);
+	float back_texture_amount = 1 - (blend_map_texture.r + blend_map_texture.g + blend_map_texture.b + blend_map_texture.a);
+	color = vec3(.8, .8, .8) * back_texture_amount;
+
+	vec3 dirt = texture(dirt_texture, source.uv).rgb * texture(blend_map, blend_map_position).r;
+	vec3 ferns = texture(ferns_texture, source.uv).rgb * texture(blend_map, blend_map_position).g;
+	vec3 road = texture(road_texture, source.uv).rgb * texture(blend_map, blend_map_position).b;
+	vec3 roots = texture(roots_texture, source.uv).rgb * texture(blend_map, blend_map_position).a;
+
+	color = color + dirt + ferns + road + roots;
 
 	vec3 light_color = vec3(.5, .5, .5);
 

@@ -61,8 +61,8 @@ void StencilMesh::update(glm::vec3 mouse_vector, glm::vec3 offset) {
 std::vector<std::array<int, 2>> StencilMesh::tiles_within_radius() {
 	std::vector<std::array<int, 2>> tiles;
 
-	int start_x = floor(_position.x - _radius);
-	int start_z = floor(_position.z - _radius);
+	int start_x = static_cast<int>(floor(_position.x - _radius));
+	int start_z = static_cast<int>(floor(_position.z - _radius));
 
 	for (int x = start_x; x < start_x + 2 * _radius; ++x) {
 		const auto dist_x = x - _position.x;
@@ -83,9 +83,9 @@ std::vector<std::array<int, 2>> StencilMesh::tiles_within_radius() {
 void StencilMesh::raise_height(float val, int flag) {
 	const auto tiles = tiles_within_radius();
 
-	if(flag == F_AVERAGE) {
+	if (flag == F_AVERAGE) {
 		float avg = 0.0f;
-		for (auto &t : tiles) {
+		for (auto& t : tiles) {
 			if (t[0] >= 0 && t[1] >= 0 && t[0] < _root->_width && t[1] < _root->_length) {
 				auto tile_heights = _root->_node.get_tile_height(t[0] + t[1] * _root->_width);
 				avg += tile_heights._v0;
@@ -95,28 +95,13 @@ void StencilMesh::raise_height(float val, int flag) {
 		val = avg;
 	}
 
-	for(auto& tile : tiles) {
+	for (auto& tile : tiles) {
 		_root->raise_height(tile[0], tile[1], val, flag);
 		_root->recalc_normals(tile[0], tile[1]);
 	}
 }
 
-//void StencilMesh::paint_blend_map(int texture, float weight) {
-//	for (int i = 0; i <= 64 * _radius; ++i) {
-//		const float ang = M_PI * 2.0 / (127.0 * _radius) * i;
-//		const float x = cos(ang) * _radius + _position.x;
-//		const float z = -sin(ang) * _radius + _position.z;
-//		float length = abs(sin(ang) * _radius);
-//
-//		for(float i = z; i < z + length * 2; i += 0.001f) {
-//			_root->paint_blend_map(x / (float)_root->_width, i / (float)_root->_length, texture, weight);
-//		}
-//	}
-//
-//	_root->create_blend_texture();
-//}
-
-void StencilMesh::paint_blend_map(int texture, float weight) {
+void StencilMesh::paint_blend_map(int texture, float weight, int flag) {
 	const int start_x = glm::mix(0, BLEND_MAP_SIZE - 1, (_position.x - _radius) / (float)_root->_width);
 	const int start_z = glm::mix(0, BLEND_MAP_SIZE - 1, (_position.z - _radius) / (float)_root->_length);
 
@@ -130,24 +115,43 @@ void StencilMesh::paint_blend_map(int texture, float weight) {
 			continue;
 		}
 
-		distance.x = x - position_t_coord_x;
+		distance.x = static_cast<float>(x - position_t_coord_x);
 
 		for (int z = start_z; z < start_z + 2 * radius_t_coord; ++z) {
 			if(z < 0 || z >= BLEND_MAP_SIZE) {
 				continue;
 			}
 
-			distance.y = z - position_t_coord_z;
+			distance.y = static_cast<float>(z - position_t_coord_z);
 
 			const auto length = glm::length(distance);
-			if(length <= radius_t_coord) {
-				_root->_blend_map[z][x][0] = 1.0f;
+			if (length <= radius_t_coord) {
+
+				if (flag == BLEND_ADD) {
+					glm::vec4 blend;
+					const auto minus = -weight / 4;
+					switch (texture) {
+					case B_TEXTURE0:	blend = glm::vec4(weight, minus, minus, minus);				break;
+					case B_TEXTURE1:	blend = glm::vec4(minus, weight, minus, minus);				break;
+					case B_TEXTURE2:	blend = glm::vec4(minus, minus, weight, minus);				break;
+					case B_TEXTURE3:	blend = glm::vec4(minus, minus, minus, weight);				break;
+					default:			blend = glm::vec4(0, 0, 0, 0);								break;
+					}
+
+					_root->_blend_map[z][x] += blend;
+
+				}
+				if (flag == BLEND_CLEAR) {
+					_root->_blend_map[z][x] = glm::vec4(0, 0, 0, 0);
+				}
+
+				glm::clamp(_root->_blend_map[z][x], 0.0f, 1.0f);
 			}
 		}
 	}
 
-
-	_root->create_blend_texture();
+	glBindTexture(GL_TEXTURE_2D, _root->_blend_texture);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, BLEND_MAP_SIZE, BLEND_MAP_SIZE, GL_RGBA, GL_FLOAT, &_root->_blend_map[0][0][0]);
 }
 
 void StencilMesh::set_radius(float radius) {
@@ -171,15 +175,15 @@ constexpr GLfloat TILE_VERTICES[] = {
 };
 
 constexpr GLfloat TILE_UVS[] = {
-	0.0f, 1.0f, 0.0f, 0.0f, .5f, 0.0f,
-	0.0f, 1.0f, .5f, 1.0f, .5f, 0.0f
+	0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+	0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f
 };
 
 TerrainMesh::TerrainMesh(Program* program) :
 	_program		( program )
 {
 	create_buffers();
-	create_tile_texture();
+	create_tile_textures();
 }
 
 void TerrainMesh::create_buffers() {
@@ -200,17 +204,25 @@ void TerrainMesh::create_buffers() {
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
 }
 
-void TerrainMesh::create_tile_texture() {
-	_tile_texture = SOIL_load_OGL_texture("Data\\tile.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, 0);
-	if(_tile_texture == 0) {
-		std::cout << "SOIL FAILED TO LOAD TILE TEXTURE" << '\n';
-	}
+void TerrainMesh::create_tile_textures() {
+	const auto create_texture = [](GLuint* texture, int active_texture, const char* file) {
+		glActiveTexture(active_texture);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		*texture = SOIL_load_OGL_texture(file, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, 0);
+		if (*texture == 0) {
+			std::cout << "SOIL FAILED TO LOAD TILE TEXTURE" << '\n';
+		}
 
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, _tile_texture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+		glBindTexture(GL_TEXTURE_2D, *texture);
+	};
+
+	create_texture(&_tile_textures[0], GL_TEXTURE3, "Data\\ashenvaledirt.png");
+	create_texture(&_tile_textures[1], GL_TEXTURE4, "Data\\ashenvaleferns.png");
+	create_texture(&_tile_textures[2], GL_TEXTURE5, "Data\\ashenvaleroad.png");
+	create_texture(&_tile_textures[3], GL_TEXTURE6, "Data\\ashenvaleroots.png");
 }
 
 void TerrainMesh::draw(TerrainNode* node) {
@@ -231,7 +243,7 @@ void TerrainMesh::draw(TerrainNode* node) {
 	glBindBuffer(GL_ARRAY_BUFFER, _normal_buffer);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::vec3) * node->_normals.size(), &node->_normals[0]);
 
-	glDrawArraysInstanced(GL_TRIANGLES, 0, TILE_VERTICES_SIZE / 2, node->_root->_width * node->_root->_length);
+	glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, TILE_VERTICES_SIZE / 2, node->_root->_width * node->_root->_length);
 }
 
 //-----------------------------------------------------------------TERRAIN Node---------------------------------------------------------------------------------------------------------
@@ -551,34 +563,40 @@ bool TerrainNode::within_range(glm::vec2 p) {
 }
 
 TerrainNode* TerrainNode::find_node(float* x, float *z) {
-	if(!has_children()) {
-		return this;
-	}
-
-	bool first_quad_x = *x < _root->_width / 2;
-	bool first_quad_z = *z < _root->_length / 2;
-
-	if(first_quad_x && first_quad_z) {
-		*x = glm::mix(0, _root->_width, *x / (_root->_width / 2));
-		*z = glm::mix(0, _root->_length, *z / (_root->_length / 2));
-		_children[0]->find_node(x, z);
-	}
-	else if(!first_quad_x && first_quad_z) {
-		*x = glm::mix(0, _root->_width, (*x - (_root->_width / 2)) / (_root->_width / 2));
-		*z = glm::mix(0, _root->_length, *z / (_root->_length / 2));
-		_children[1]->find_node(x, z);
-	}
-	else if(first_quad_x && !first_quad_z) {
-		*x = glm::mix(0, _root->_width, *x / (_root->_width / 2));
-		*z = glm::mix(0, _root->_length, (*z - (_root->_length / 2)) / (_root->_length / 2));
-		_children[2]->find_node(x, z);
-	}
-	else if(!first_quad_x && !first_quad_z) {
-		*x = glm::mix(0, _root->_width, (*x - (_root->_width / 2)) / (_root->_width / 2));
-		*z = glm::mix(0, _root->_length, (*z - (_root->_length / 2)) / (_root->_length / 2));
-		_children[3]->find_node(x, z);
-	}
+	return nullptr;
 }
+
+//TerrainNode* TerrainNode::find_node(float* x, float *z) {
+//	if(!has_children()) {
+//		return this;
+//	}
+//
+//	bool first_quad_x = *x < _root->_width / 2;
+//	bool first_quad_z = *z < _root->_length / 2;
+//
+//	if(first_quad_x && first_quad_z) {
+//		*x = glm::mix(0.0f, _root->_width, *x / (_root->_width / 2));
+//		*z = glm::mix(0.0f, _root->_length, *z / (_root->_length / 2));
+//		return _children[0]->find_node(x, z);
+//	}
+//	else if(!first_quad_x && first_quad_z) {
+//		*x = glm::mix(0.0f, _root->_width, (*x - (_root->_width / 2)) / (_root->_width / 2));
+//		*z = glm::mix(0.0f, _root->_length, *z / (_root->_length / 2));
+//		return _children[1]->find_node(x, z);
+//	}
+//	else if(first_quad_x && !first_quad_z) {
+//		*x = glm::mix(0.0f, _root->_width, *x / (_root->_width / 2));
+//		*z = glm::mix(0.0f, _root->_length, (*z - (_root->_length / 2)) / (_root->_length / 2));
+//		return _children[2]->find_node(x, z);
+//	}
+//	else if(!first_quad_x && !first_quad_z) {
+//		*x = glm::mix(0.0f, _root->_width, (*x - (_root->_width / 2)) / (_root->_width / 2));
+//		*z = glm::mix(0.0f, _root->_length, (*z - (_root->_length / 2)) / (_root->_length / 2));
+//		return _children[3]->find_node(x, z);
+//	}
+//
+//	return nullptr;
+//}
 
 //-----------------------------------------------------------------TERRAIN--------------------------------------------------------------------------------------------------------------
 
@@ -594,13 +612,6 @@ Terrain::Terrain(int width, int length, int depth, Program* terrain_program, Pro
 	assert(width >= 0 && length >= 0);
 	assert(float(width) / 2.0 == width / 2);
 
-	for(auto& row : _blend_map) {
-		for(auto&p : row) {
-			//p = glm::vec3((rand() % 100) / 100.0f, (rand() % 100) / 100.0f, (rand() % 100) / 100.0f);
-		}
-	}
-
-	create_blend_texture();
 }
 
 void Terrain::create_height_buffer() {
@@ -629,17 +640,14 @@ void Terrain::create_normal_buffer() {
 
 void Terrain::create_blend_texture() {
 	glBindVertexArray(TerrainMesh::_vao);
-	glDeleteTextures(1, &_blend_texture);
 	glGenTextures(1, &_blend_texture);
-	glActiveTexture(GL_TEXTURE3);
+	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, _blend_texture);
 
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, BLEND_MAP_SIZE, BLEND_MAP_SIZE, 0, GL_RGB, GL_FLOAT, &_blend_map[0][0][0]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, BLEND_MAP_SIZE, BLEND_MAP_SIZE, 0, GL_RGBA, GL_FLOAT, &_blend_map[0][0][0]);
 	glGenerateMipmap(GL_TEXTURE_2D);
 }
 
@@ -679,22 +687,6 @@ void Terrain::raise_height(int x, int z, float val, int flag) {
 		break;
 	default:
 		break;
-	}
-}
-
-void Terrain::paint_blend_map(float x, float z, int texture, float weight) {
-	if(x < 0.0f || x > 1.0f || z < 0.0f || z > 1.0f) {
-		return;
-	}
-
-	int x_index = glm::mix(0, BLEND_MAP_SIZE - 1, x);
-	int z_index = glm::mix(0, BLEND_MAP_SIZE - 1, z);
-
-	switch (texture) {
-	case B_TEXTURE0:	_blend_map[z_index][x_index].r += weight;			break;
-	case B_TEXTURE1:	_blend_map[z_index][x_index].g += weight;			break;
-	case B_TEXTURE2:	_blend_map[z_index][x_index].b += weight;			break;
-	default:																break;
 	}
 }
 
@@ -802,9 +794,10 @@ float Terrain::exact_height(float x, float z) {
 void Terrain::save(std::string file) {
 	std::ofstream terrain_file(file.c_str(), std::ios::trunc | std::ios::binary);
 
-	terrain_file.write(static_cast<const char*>(static_cast<void*>(&_width)), 4);
-	terrain_file.write(static_cast<const char*>(static_cast<void*>(&_length)), 4);
-	terrain_file.write(static_cast<const char*>(static_cast<void*>(&_node._heights[0])), sizeof(GLfloat) * _node._heights.size());
+	terrain_file.write(reinterpret_cast<const char*>(&_width), 4);
+	terrain_file.write(reinterpret_cast<const char*>(&_length), 4);
+	terrain_file.write(reinterpret_cast<const char*>(&_node._heights[0]), sizeof(GLfloat) * _node._heights.size());
+	terrain_file.write(reinterpret_cast<const char*>(&_blend_map[0][0][0]), sizeof(GLfloat) * 4 * BLEND_MAP_SIZE * BLEND_MAP_SIZE);
 
 	terrain_file.close();
 }
@@ -813,12 +806,17 @@ void Terrain::load(std::string file) {
 	std::ifstream terrain_file(file.c_str(), std::ios::binary);
 
 	if (terrain_file.is_open()) {
-		terrain_file.read(static_cast<char*>(static_cast<void*>(&_width)), 4);
-		terrain_file.read(static_cast<char*>(static_cast<void*>(&_length)), 4);
+		terrain_file.read(reinterpret_cast<char*>(&_width), 4);
+		terrain_file.read(reinterpret_cast<char*>(&_length), 4);
 		_node._heights.resize((_width + 1) * (_length + 1));
-		terrain_file.read(static_cast<char*>(static_cast<void*>(&_node._heights[0])), sizeof(GLfloat) * _node._heights.size());
+		terrain_file.read(reinterpret_cast<char*>(&_node._heights[0]), sizeof(GLfloat) * _node._heights.size());
+		terrain_file.read(reinterpret_cast<char*>(&_blend_map[0][0][0]), sizeof(GLfloat) * 4U * BLEND_MAP_SIZE * BLEND_MAP_SIZE);
 
 		terrain_file.close();
+	}
+	else {
+		_node._heights.resize((_width + 1) * (_length + 1));
+		_node.generate_normals();
 	}
 
 	_node._quad = glm::vec4(0, 0, _width, _length);
@@ -830,4 +828,6 @@ void Terrain::load(std::string file) {
 
 	create_height_buffer();
 	create_normal_buffer();
+
+	create_blend_texture();
 }

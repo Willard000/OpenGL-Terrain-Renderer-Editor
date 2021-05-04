@@ -19,6 +19,10 @@
 #define B_TEXTURE0 0
 #define B_TEXTURE1 1
 #define B_TEXTURE2 2
+#define B_TEXTURE3 3
+
+#define BLEND_ADD 0
+#define BLEND_CLEAR 1
 
 #define BLEND_MAP_SIZE 1028
 
@@ -34,7 +38,7 @@ public:
 
 	std::vector<std::array<int, 2>> tiles_within_radius();
 
-	void paint_blend_map(int texture, float weight);
+	void paint_blend_map(int texture, float weight, int flag = BLEND_ADD);
 	void raise_height(float val, int flag);
 
 	void set_radius(float radius);
@@ -59,7 +63,7 @@ public:
 
 protected:
 	void create_buffers();
-	void create_tile_texture();
+	void create_tile_textures();
 	void draw(TerrainNode* node);
 	
 	GLuint							_vao;
@@ -70,7 +74,7 @@ protected:
 
 	GLuint							_height_texture;
 	GLuint							_normal_texture;
-	GLuint							_tile_texture;
+	std::array<GLuint, 4>			_tile_textures;
 
 	Program*					    _program;
 };
@@ -132,7 +136,7 @@ public:
 	TerrainFaceNormals						_face_normals;
 };
 
-typedef std::array<std::array<glm::vec3, BLEND_MAP_SIZE>, BLEND_MAP_SIZE> BlendMap;
+typedef std::array<std::array<glm::vec4, BLEND_MAP_SIZE>, BLEND_MAP_SIZE> BlendMap;
 
 class Terrain : public TerrainMesh, public StencilMesh {
 public:
@@ -144,7 +148,7 @@ public:
 
 	float find_height(glm::vec3 position, glm::vec3 offset);
 	bool  above_terrain(glm::vec3 position, glm::vec3 offset, float height);
-	float exact_height(float x, float y);
+	float exact_height(float x, float z);
 
 	Transform& get_transform();
 
@@ -156,7 +160,6 @@ private:
 	void create_normal_buffer();
 
 	void raise_height(int x, int z, float val, int flag);
-	void paint_blend_map(float x, float z, int texture, float weight);
 
 	void recalc_normals(int x, int z);
 

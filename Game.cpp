@@ -61,6 +61,10 @@ void Game::update() {
 	_core->_clock->update();
 	_core->_window->set_title(std::to_string(_core->_clock->get_fms()));
 	_core->_camera->update();
+
+	auto& pos = _core->_camera->get_position();
+	auto scale = _terrain->get_transform().get_scale();
+	pos.y = _terrain->exact_height(pos.x / scale.x, pos.z / scale.z) + 5.0f;
 }
 
 void Game::draw() {

@@ -1,4 +1,0 @@
-# Model
-DIR Data\Models\Box\
-file box.obj
-program 5
