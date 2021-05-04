@@ -19,7 +19,8 @@ Terrain renderer and editor.
 [OpenGL](https://www.opengl.org/) Graphics library  
 [gl3w](https://github.com/skaslev/gl3w) OpenGL core profile loading  
 [GLFW](https://www.glfw.org/) OpenGL window creation and input handling  
-[SOIL](https://github.com/littlstar/soil) OpenGL image library
+[SOIL](https://github.com/littlstar/soil) OpenGL image library  
+[glm](https://glm.g-truc.net/0.9.9/) OpenGL Math library
 
 ## How it Works
 
