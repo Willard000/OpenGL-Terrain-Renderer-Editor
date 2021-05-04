@@ -55,4 +55,5 @@ void main() {
 	vec3 ambient = vec3(.5, .5, .5);
 
 	f_color = (ambient + diffuse) * color;
+
 }

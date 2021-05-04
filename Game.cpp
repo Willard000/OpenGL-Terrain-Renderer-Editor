@@ -22,7 +22,7 @@ Game::Game(Core* core) :
 	const auto terrain_shader = _core->_shader_manager->get_program(1);
 	const auto stencil_shader = _core->_shader_manager->get_program(2);
 	_terrain = std::make_unique<Terrain>(100, 100, 3, terrain_shader, stencil_shader);
-	_terrain->get_transform().set_scale(glm::vec3(10.0f, 10.0f, 10.0f));
+	_terrain->get_transform().set_scale(glm::vec3(1.0f, 1.0f, 1.0f));
 	_terrain->load("Data\\terrain.txt");
 
 	glEnable(GL_DEPTH_TEST);
@@ -64,7 +64,7 @@ void Game::update() {
 
 	auto& pos = _core->_camera->get_position();
 	auto scale = _terrain->get_transform().get_scale();
-	pos.y = _terrain->exact_height(pos.x / scale.x, pos.z / scale.z) + 5.0f;
+	//pos.y = _terrain->exact_height(pos.x / scale.x, pos.z / scale.z) + 5.0f;
 }
 
 void Game::draw() {

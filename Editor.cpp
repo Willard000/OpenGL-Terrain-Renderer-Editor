@@ -16,7 +16,7 @@ Editor::Editor(Core* core) :
 {
 	const auto terrain_shader = _core->_shader_manager->get_program(1);
 	const auto stencil_shader = _core->_shader_manager->get_program(2);
-	_terrain = std::make_unique<Terrain>(100, 100, 0, terrain_shader, stencil_shader);
+	_terrain = std::make_unique<Terrain>(100, 100, 3, terrain_shader, stencil_shader);
 	_terrain->get_transform().set_scale(glm::vec3(1.0f, 1.0f, 1.0f));
 	_terrain->load("Data\\terrain.txt");
 
@@ -163,7 +163,7 @@ void Editor::draw() {
 	glClearBufferfv(GL_COLOR, 0, CLEAR_COLOR);
 
 	_terrain->draw(_core->_camera->get_position());
-	//_terrain->StencilMesh::draw(glm::vec3(0, 0, 0));
+	_terrain->StencilMesh::draw(glm::vec3(0, 0, 0));
 
 	glfwSwapBuffers(_core->_window->get());
 
