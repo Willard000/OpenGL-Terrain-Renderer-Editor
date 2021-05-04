@@ -129,7 +129,7 @@ void StencilMesh::paint_blend_map(int texture, float weight, int flag) {
 
 				if (flag == BLEND_ADD) {
 					glm::vec4 blend;
-					const auto minus = -weight / 4;
+					const auto minus = -weight / 2;
 					switch (texture) {
 					case B_TEXTURE0:	blend = glm::vec4(weight, minus, minus, minus);				break;
 					case B_TEXTURE1:	blend = glm::vec4(minus, weight, minus, minus);				break;
@@ -219,10 +219,10 @@ void TerrainMesh::create_tile_textures() {
 		glBindTexture(GL_TEXTURE_2D, *texture);
 	};
 
-	create_texture(&_tile_textures[0], GL_TEXTURE3, "Data\\ashenvaledirt.png");
-	create_texture(&_tile_textures[1], GL_TEXTURE4, "Data\\ashenvaleferns.png");
-	create_texture(&_tile_textures[2], GL_TEXTURE5, "Data\\ashenvaleroad.png");
-	create_texture(&_tile_textures[3], GL_TEXTURE6, "Data\\ashenvaleroots.png");
+	create_texture(&_tile_textures[0], GL_TEXTURE3, "Data\\t1.png");
+	create_texture(&_tile_textures[1], GL_TEXTURE4, "Data\\t2.png");
+	create_texture(&_tile_textures[2], GL_TEXTURE5, "Data\\t3.png");
+	create_texture(&_tile_textures[3], GL_TEXTURE6, "Data\\t4.png");
 }
 
 void TerrainMesh::draw(TerrainNode* node) {

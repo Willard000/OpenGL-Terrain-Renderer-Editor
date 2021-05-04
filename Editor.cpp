@@ -64,10 +64,10 @@ bool Editor::handle_input() {
 
 	if (_edit_mode == EDIT_TERRAIN) {
 		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_LEFT)) {
-			_terrain->StencilMesh::raise_height(.01f, 0);
+			_terrain->StencilMesh::raise_height(.1f, 0);
 		}
 		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_RIGHT)) {
-			_terrain->StencilMesh::raise_height(-.01f, 0);
+			_terrain->StencilMesh::raise_height(-.1f, 0);
 		}
 		if (glfwGetMouseButton(_core->_window->get(), GLFW_MOUSE_BUTTON_MIDDLE)) {
 			_terrain->StencilMesh::raise_height(0.0f, 1);

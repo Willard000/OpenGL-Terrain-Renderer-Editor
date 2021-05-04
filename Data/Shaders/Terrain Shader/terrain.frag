@@ -15,10 +15,10 @@ in VS {
 
 layout (binding = 2) uniform sampler2D blend_map;
 
-layout (binding = 3) uniform sampler2D dirt_texture;
-layout (binding = 4) uniform sampler2D ferns_texture;
-layout (binding = 5) uniform sampler2D road_texture;
-layout (binding = 6) uniform sampler2D roots_texture;
+layout (binding = 3) uniform sampler2D tile_texture1;
+layout (binding = 4) uniform sampler2D tile_texture2;
+layout (binding = 5) uniform sampler2D tile_texture3;
+layout (binding = 6) uniform sampler2D tile_texture4;
 
 void main() {
 	//vec3 color = texture(tile_texture, source.uv).xyz;
@@ -37,17 +37,17 @@ void main() {
 	float back_texture_amount = 1 - (blend_map_texture.r + blend_map_texture.g + blend_map_texture.b + blend_map_texture.a);
 	color = vec3(.8, .8, .8) * back_texture_amount;
 
-	vec3 dirt = texture(dirt_texture, source.uv).rgb * texture(blend_map, blend_map_position).r;
-	vec3 ferns = texture(ferns_texture, source.uv).rgb * texture(blend_map, blend_map_position).g;
-	vec3 road = texture(road_texture, source.uv).rgb * texture(blend_map, blend_map_position).b;
-	vec3 roots = texture(roots_texture, source.uv).rgb * texture(blend_map, blend_map_position).a;
+	vec3 t_color1 = texture(tile_texture1, source.uv).rgb * texture(blend_map, blend_map_position).r;
+	vec3 t_color2 = texture(tile_texture2, source.uv).rgb * texture(blend_map, blend_map_position).g;
+	vec3 t_color3 = texture(tile_texture3, source.uv).rgb * texture(blend_map, blend_map_position).b;
+	vec3 t_color4 = texture(tile_texture4, source.uv).rgb * texture(blend_map, blend_map_position).a;
 
-	color = color + dirt + ferns + road + roots;
+	color = color + t_color1 + t_color2 + t_color3 + t_color4;
 
-	vec3 light_color = vec3(.5, .5, .5);
+	vec3 light_color = vec3(.6, .6, .6);
 
 	vec3 normal = normalize(source.normal);
-	vec3 light_position = vec3(0, 20, 0);
+	vec3 light_position = vec3(0, 50, 0);
 	vec3 light_direction = normalize(light_position - source.position);
 
 	float diff = clamp(dot(normal, light_direction), 0, 1);
