@@ -15,6 +15,12 @@ Terrain renderer and editor.
 
 [End Note](#end-note)
 
+## Libraries
+[OpenGL](https://www.opengl.org/) Graphics library  
+[gl3w](https://github.com/skaslev/gl3w) OpenGL core profile loading  
+[GLFW](https://www.glfw.org/) OpenGL window creation and input handling  
+[SOIL](https://github.com/littlstar/soil) OpenGL image library
+
 ## How it Works
 
 ### Terrain Mesh
@@ -92,7 +98,7 @@ Here is a semi-hand painted section of the terrain:
 
 ### Level of Detail
 
-We can increase the level of detail of our vertices by adding more. To do this I created a quadtree structure where the numbers of vertices doubles every time we divide the terrain into 4 more nodes.
+We can increase the level of detail of our vertices by adding more. To do this I created a quadtree structure where the numbers of vertices is multiplied by 4 for each level of detail.
 
 [Quadtree wiki](https://en.wikipedia.org/wiki/Quadtree)
 
@@ -209,4 +215,8 @@ And the result with textures:
 
 The best way to show this off is with a video.
 
-[Editor Demo]()
+[Editing Demo](https://www.youtube.com/watch?v=cKjI6oR3NwI)
+
+## End Note
+
+Work in progress...  
