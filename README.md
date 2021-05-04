@@ -9,9 +9,9 @@ Terrain renderer and editor.
   - [Terrain Mesh](#terrain-mesh)
   - [Height Map](#height-map)
   - [Normal Map](#normal-map)
-  - [Filtering](#filtering)
-  - [Conversion](#conversion)
-  - [Result](#result)
+  - [Blend Map](#blend-map)
+  - [Level of Detail](#level-of-detail)
+  - [Editing Terrain](#editing-terrain)
 
 [End Note](#end-note)
 
@@ -35,7 +35,7 @@ We take this mesh and draw it using OpenGL's instance rendering depending on the
 ```C++
 glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, TILE_VERTICES_SIZE / 2, node->_root->_width * node->_root->_length);
 ```
-Here is the result of a flat terrain with simple shading.
+Here is the result of a flat terrain with simple shading:
 
 ![](https://github.com/willardt/3.31/blob/main/ss/terrain.png?raw=true "")  
 
@@ -68,7 +68,145 @@ vec3 get_normal(const int vertex) {
 ```
 
 
-Here is the result after adding a height map and normal map.
+Here is the result after adding a height map and normal map:
 
 ![](https://github.com/willardt/3.31/blob/main/ss/terrain2.png?raw=true "")
 
+### Blend Map
+
+The next step is to add textures to the terrain. To do this we take 4 seperate textures and represent them on the terrain with a blend map. Each channel of the blend map (RGBA) represents the weight of a texture. 
+```glsl  
+float back_texture_amount = 1 - (blend_map_texture.r + blend_map_texture.g + blend_map_texture.b + blend_map_texture.a);
+color = vec3(.8, .8, .8) * back_texture_amount;
+	
+vec3 t_color1 = texture(tile_texture1, source.uv).rgb * texture(blend_map, blend_map_position).r;
+vec3 t_color2 = texture(tile_texture2, source.uv).rgb * texture(blend_map, blend_map_position).g;
+vec3 t_color3 = texture(tile_texture3, source.uv).rgb * texture(blend_map, blend_map_position).b;
+vec3 t_color4 = texture(tile_texture4, source.uv).rgb * texture(blend_map, blend_map_position).a;
+
+color = color + t_color1 + t_color2 + t_color3 + t_color4;
+```
+Here is a semi-hand painted section of the terrain:
+
+![](https://github.com/willardt/3.31/blob/main/ss/terrain3.png?raw=true "")
+
+### Level of Detail
+
+We can increase the level of detail of our vertices by adding more. To do this I created a quadtree structure where the numbers of vertices doubles every time we divide the terrain into 4 more nodes.
+
+[Quadtree wiki](https://en.wikipedia.org/wiki/Quadtree)
+
+Level 0 detail
+![](https://github.com/willardt/3.31/blob/main/ss/terrain5.png?raw=true "")
+Level 3 detail (third node in quadtree)
+![](https://github.com/willardt/3.31/blob/main/ss/terrain4.png?raw=true "")
+Level 0 detail wireframe
+![](https://github.com/willardt/3.31/blob/main/ss/terrain6.png?raw=true "")
+Level 3 detail wireframe
+![](https://github.com/willardt/3.31/blob/main/ss/terrain7.png?raw=true "")
+
+Note that when we increase the level of detail we have no data for the height values between vertices. To find this data I approximate the average height of the new vertices. 
+
+Here is how a tile is divided into 4:
+
+![](https://github.com/willardt/3.31/blob/main/ss/average.png?raw=true "")
+
+The corner vertices retain the same value of the original tile, while the new vertices are an average of their adjacent vertices.
+```C++
+void TerrainNode::generate_heights(int index) {
+	_heights.clear();
+	_heights.resize(_parent->_heights.size());
+
+	auto valid = [&](const size_t& i) {
+		if(i < 0 || i > _parent->_heights.size() - 1) {
+			return false;
+		}
+		return true;
+	};
+			
+	auto avg = [&](const size_t& i , const size_t& i2) {
+		std::vector<size_t> indices = { i, i2};
+		int divisor = 0;
+		GLfloat value = 0.0f;
+		for (const auto& i : indices) {
+			if (valid(i)) {
+				value += _parent->_heights.at(i);
+				++divisor;
+			}
+		}
+			
+		return value / (GLfloat)divisor;
+	};
+			
+	auto avg2 = [&](const int& i, const int& i2, const int& i3, const int& i4) {
+		std::vector<int> indices = {i, i2, i3, i4};
+		int divisor = 0;
+		GLfloat value = 0.0f;
+		for(const auto& i : indices) {
+			if (valid(i)) {
+				value += _parent->_heights.at(i);
+				++divisor;
+			}
+		}
+			
+		return value / (GLfloat)divisor;
+	};
+
+	size_t in_i = index;
+	size_t out_i = 0;
+	int count = 0;
+		
+	bool even = true;
+	while (out_i < (_heights.size())) {
+		if (even) {
+			_heights.at(out_i) = _parent->_heights.at(in_i);
+			++count;
+		
+			while (count < _root->_width) {
+				++out_i;
+				++in_i;
+				_heights.at(out_i) = avg(in_i - 1, in_i);
+				++count;
+		
+				++out_i;
+				_heights.at(out_i) = _parent->_heights.at(in_i);
+				++count;
+			}
+		
+			++in_i;
+			in_i += _root->_width / 2;
+		}
+		else {
+			_heights.at(out_i) = avg(in_i - _root->_width - 1, in_i);
+			++count;
+		
+			while (count < _root->_width) {
+				++out_i;
+				++in_i;
+				_heights.at(out_i) = avg2(in_i, in_i - _root->_width - 1, in_i - 1, in_i - _root->_width - 2);
+				++count;
+		
+				++out_i;
+				_heights.at(out_i) = avg(in_i - _root->_width - 1, in_i);
+				++count;
+			}
+		
+			in_i -= _root->_width / 2;
+		}
+		
+		++out_i;
+		count = 0;
+		even = !even;
+	}
+}
+```
+
+And the result with textures:
+
+![](https://github.com/willardt/3.31/blob/main/ss/terrain8.png?raw=true "")
+
+### Editing Terrain
+
+The best way to show this off is with a video.
+
+[Editor Demo]()
