@@ -6,10 +6,14 @@
 
 #include <string>
 
+/********************************************************************************************************************************************************/
+
 struct ShaderInfo {
 	unsigned short		 _type;
 	std::string			 _file_path;
 };
+
+/********************************************************************************************************************************************************/
 
 struct ProgramFile {
 	ProgramFile(const char* file_path);
@@ -23,17 +27,22 @@ struct ProgramFile {
 	std::string _compute_shader;
 };
 
+/********************************************************************************************************************************************************/
+
 struct Program {
 	Program();
 	Program(int key, std::string_view file_path);
 	
 	~Program();
 
-	void load_from_file(std::string_view file_path);
+	void load(std::string_view file_path);
+	unsigned int load_shaders(const ShaderInfo* program) const;
 	
 	int				_key;
 	std::string		_name;
 	GLuint			_id;
 };
+
+/********************************************************************************************************************************************************/
 
 #endif

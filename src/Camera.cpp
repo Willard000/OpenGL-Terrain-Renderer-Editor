@@ -173,3 +173,20 @@ glm::vec3 &Camera::get_position() {
 int Camera::get_mode() const {
 	return _mode;
 }
+
+glm::vec3 Camera::mouse_to_3d_vector() {
+	double x, y;
+	int width, height;
+	glfwGetCursorPos(_window->get(), &x, &y);
+	glfwGetWindowSize(_window->get(), &width, &height);
+	const float x_norm = static_cast<float>(x) / static_cast<float>(width / 2) - 1.0f;
+	const float y_norm = -(static_cast<float>(y) / static_cast<float>(height / 2) - 1.0f);
+
+	//				       inverse projection							    clip space
+	glm::vec4 view_space = glm::inverse(_projection) * glm::vec4(x_norm, y_norm, -1.0f, 1.0f);
+	view_space.z = -1.0f;
+	view_space.w = 0.0f;
+
+	//	normalized world space	 inverse view						 view_space
+	return glm::normalize(glm::inverse(_view) * view_space);
+}

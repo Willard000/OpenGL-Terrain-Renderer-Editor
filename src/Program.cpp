@@ -7,6 +7,8 @@
 
 #include "FileReader.h"
 
+/********************************************************************************************************************************************************/
+
 ProgramFile::ProgramFile(const char* file_path) {
 	FileReader file(file_path);
 
@@ -19,29 +21,66 @@ ProgramFile::ProgramFile(const char* file_path) {
 	file.read(&_compute_shader, "compute");
 }
 
-GLuint load_shaders(const ShaderInfo* program) {
-	GLuint	    program_id			=		glCreateProgram()	;
-	GLuint		shader_id			=		0					;
-	GLint		result				=		0					;
-	GLint		info_log_length		=		0					;
-	auto		data				=		""					;
-	auto		loaded				=		false				;
+/********************************************************************************************************************************************************/
+
+Program::Program() :
+	_key		( -1 ),
+	_id			( 0 )
+{}
+
+Program::Program(int key, std::string_view file_path) :
+	_key		( key ),
+	_id			( 0 )
+{
+	load(file_path);
+}
+
+Program::~Program() {
+	glDeleteProgram(_id);
+}
+
+void Program::load(std::string_view file_path) {
+	ProgramFile file(file_path.data());
+	ShaderInfo program[] = { {GL_VERTEX_SHADER, }, { GL_GEOMETRY_SHADER, }, { GL_FRAGMENT_SHADER, }, { GL_COMPUTE_SHADER, }, { GL_NONE, } };
+
+	auto append_strings = [](std::string& str, const std::string_view str2, const std::string_view str3) {
+		str.reserve(str2.size() + str3.size());
+		str.append(str2);
+		str.append(str3);
+	};
+
+	if (!file._vertex_shader.empty())		append_strings(program[0]._file_path, file._dir, file._vertex_shader);
+	if (!file._geometry_shader.empty())		append_strings(program[1]._file_path, file._dir, file._geometry_shader);
+	if (!file._fragment_shader.empty())		append_strings(program[2]._file_path, file._dir, file._fragment_shader);
+	if (!file._compute_shader.empty())		append_strings(program[3]._file_path, file._dir, file._compute_shader);
+
+	_id = load_shaders(program);
+	_name = file._name;
+}
+
+GLuint Program::load_shaders(const ShaderInfo* program) const {
+	GLuint	    program_id = glCreateProgram();
+	GLuint		shader_id = 0;
+	GLint		result = 0;
+	GLint		info_log_length = 0;
+	auto		data = "";
+	auto		loaded = false;
 
 	std::vector<GLuint> shader_ids;
 
-	for(unsigned int i = 0; program[i]._type != GL_NONE; ++i) {
+	for (unsigned int i = 0; program[i]._type != GL_NONE; ++i) {
 		std::string			sdata;
 		std::stringstream	ssdata;
 		std::fstream		file(program[i]._file_path, std::ios::in);
 
-		if(file.is_open()) {
-			ssdata		<<		file.rdbuf();
-			file		.		seekg(0, std::ios::end);
-			sdata		.		reserve((size_t)file.tellg());
-			sdata		=		ssdata.str();
-			data		=		sdata.c_str();
-			shader_id	=		glCreateShader(program[i]._type);
-			shader_ids	.		push_back(shader_id);
+		if (file.is_open()) {
+			ssdata << file.rdbuf();
+			file.seekg(0, std::ios::end);
+			sdata.reserve((size_t)file.tellg());
+			sdata = ssdata.str();
+			data = sdata.c_str();
+			shader_id = glCreateShader(program[i]._type);
+			shader_ids.push_back(shader_id);
 
 			glShaderSource(shader_id, 1, &data, NULL);
 			glCompileShader(shader_id);
@@ -69,7 +108,7 @@ GLuint load_shaders(const ShaderInfo* program) {
 
 	glLinkProgram(program_id);
 
-	for(auto shader_id : shader_ids) {
+	for (auto shader_id : shader_ids) {
 		glDetachShader(program_id, shader_id);
 		glDeleteShader(shader_id);
 	}
@@ -77,39 +116,4 @@ GLuint load_shaders(const ShaderInfo* program) {
 	std::cout << "Program Loaded -> " << program_id << '\n';
 
 	return program_id;
-}
-
-Program::Program() :
-	_key		( -1 ),
-	_id			( 0 )
-{}
-
-Program::Program(int key, std::string_view file_path) :
-	_key		( key ),
-	_id			( 0 )
-{
-	load_from_file(file_path);
-}
-
-Program::~Program() {
-	glDeleteProgram(_id);
-}
-
-void Program::load_from_file(std::string_view file_path) {
-	ProgramFile file(file_path.data());
-	ShaderInfo program[] = { {GL_VERTEX_SHADER, }, { GL_GEOMETRY_SHADER, }, { GL_FRAGMENT_SHADER, }, { GL_COMPUTE_SHADER, }, { GL_NONE, } };
-
-	auto append_strings = [](std::string& str, const std::string_view str2, const std::string_view str3) {
-		str.reserve(str2.size() + str3.size());
-		str.append(str2);
-		str.append(str3);
-	};
-
-	if (!file._vertex_shader.empty())		append_strings(program[0]._file_path, file._dir, file._vertex_shader);
-	if (!file._geometry_shader.empty())		append_strings(program[1]._file_path, file._dir, file._geometry_shader);
-	if (!file._fragment_shader.empty())		append_strings(program[2]._file_path, file._dir, file._fragment_shader);
-	if (!file._compute_shader.empty())		append_strings(program[3]._file_path, file._dir, file._compute_shader);
-
-	_id = load_shaders(program);
-	_name = file._name;
 }

@@ -14,10 +14,9 @@ void StateManager::run() {
 		auto& current_state = _states.back();
 
 		while (!current_state->_close && !exit) {
+			current_state->first_frame();
 			exit = current_state->handle_input();
-
 			current_state->update();
-
 			current_state->draw();
 		}
 

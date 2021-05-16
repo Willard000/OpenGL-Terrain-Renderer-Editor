@@ -10,6 +10,7 @@ class Game : public State {
 public:
 	Game(Core* core);
 
+	void first_frame();
 	bool handle_input();
 	void update();
 	void draw();

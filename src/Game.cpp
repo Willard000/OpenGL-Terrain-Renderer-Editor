@@ -28,6 +28,9 @@ Game::Game(Core* core) :
 	glEnable(GL_DEPTH_TEST);
 }
 
+void Game::first_frame() {
+}
+
 bool Game::handle_input() {
 	glfwPollEvents();
 

@@ -15,6 +15,7 @@
 #define F_RAISE 0
 #define F_SET 1
 #define F_AVERAGE 2
+#define F_SET_CURRENT 3
 
 #define B_TEXTURE0 0
 #define B_TEXTURE1 1
@@ -29,9 +30,11 @@
 class Terrain;
 struct TerrainNode;
 
-class StencilMesh {
+/********************************************************************************************************************************************************/
+
+class BrushMesh {
 public:
-	StencilMesh(Program* program, Terrain* root);
+	BrushMesh(Program* program, Terrain* root);
 
 	void update(glm::vec3 mouse_vector, glm::vec3 offset);
 	void draw(glm::vec3 position);
@@ -41,27 +44,24 @@ public:
 	void paint_blend_map(int texture, float weight, int flag = BLEND_ADD);
 	void raise_height(float val, int flag);
 
-	void set_radius(float radius);
-	float get_radius() const;
-protected:
+	void update_blend_texture();
+
 	void create_buffers();
 
 	glm::vec3						_position;
 	float							_radius;
-
 	GLuint							_vao;
 	GLuint							_vertex_buffer;
-
 	Program*						_program;
-	
 	Terrain*						_root;
 };
+
+/********************************************************************************************************************************************************/
 
 class TerrainMesh {
 public:
 	TerrainMesh(Program* program);
 
-protected:
 	void create_buffers();
 	void create_tile_textures();
 	void draw(TerrainNode* node);
@@ -78,6 +78,8 @@ protected:
 
 	Program*					    _program;
 };
+
+/********************************************************************************************************************************************************/
 
 typedef std::array<std::unique_ptr<TerrainNode>, 4> TerrainChildren;
 typedef std::vector<GLfloat>						TerrainHeights;
@@ -99,6 +101,8 @@ struct TerrainTile {
 
 	Vertex _v0, _v1, _v2, _v3;
 };
+
+/********************************************************************************************************************************************************/
 
 struct TerrainNode {
 public:
@@ -136,11 +140,13 @@ public:
 	TerrainFaceNormals						_face_normals;
 };
 
+/********************************************************************************************************************************************************/
+
 typedef std::array<std::array<glm::vec4, BLEND_MAP_SIZE>, BLEND_MAP_SIZE> BlendMap;
 
-class Terrain : public TerrainMesh, public StencilMesh {
+class Terrain {
 public:
-	Terrain(int width, int length, int depth, Program* terrain_program, Program* stencil_program);
+	Terrain(int width, int length, int depth, Program* terrain_program, Program* brush_program);
 
 	void draw(glm::vec3 camera_position);
 	void draw_stencil(glm::vec3 position);
@@ -154,13 +160,12 @@ public:
 
 	void save(std::string file);
 	void load(std::string file);
-private:
+
 	void create_height_buffer();
 	void create_blend_texture();
 	void create_normal_buffer();
 
 	void raise_height(int x, int z, float val, int flag);
-
 	void recalc_normals(int x, int z);
 
 	int								_width;
@@ -175,9 +180,10 @@ private:
 	TerrainNode						_node;
 	Transform						_transform;
 
-	friend struct TerrainNode;
-	friend class TerrainMesh;
-	friend class StencilMesh;
+	std::unique_ptr<TerrainMesh>	_mesh;
+	std::unique_ptr<BrushMesh>		_brush_mesh;
 };
+
+/********************************************************************************************************************************************************/
 
 #endif

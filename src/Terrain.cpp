@@ -13,9 +13,11 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-//-----------------------------------------------------------STENCIL MESH---------------------------------------------------------------------------------------------------------
+#include <future>
 
-StencilMesh::StencilMesh(Program* program, Terrain* root) :
+//-----------------------------------------------------------BRUSH MESH---------------------------------------------------------------------------------------------------------
+
+BrushMesh::BrushMesh(Program* program, Terrain* root) :
 	_program		( program ),
 	_root			( root ),
 	_radius			( 1.0f )
@@ -23,16 +25,16 @@ StencilMesh::StencilMesh(Program* program, Terrain* root) :
 	create_buffers();
 }
 
-void StencilMesh::create_buffers() {
+void BrushMesh::create_buffers() {
 	glCreateVertexArrays(1, &_vao);
 	glBindVertexArray(_vao);
 	glUseProgram(_program->_id);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_BUFFER, _root->_height_texture);
+	glBindTexture(GL_TEXTURE_BUFFER, _root->_mesh->_height_texture);
 }
 
-void StencilMesh::draw(glm::vec3 position) {
+void BrushMesh::draw(glm::vec3 position) {
 	glBindVertexArray(_vao);
 	glUseProgram(_program->_id);
 
@@ -42,13 +44,13 @@ void StencilMesh::draw(glm::vec3 position) {
 	glUniform3fv(glGetUniformLocation(_program->_id, "position"), 1, &_position[0]);
 	glUniform1f(glGetUniformLocation(_program->_id, "radius"), _radius);
 
-	glBindBuffer(GL_ARRAY_BUFFER, _root->_height_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _root->_mesh->_height_buffer);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * _root->_node._heights.size(), &_root->_node._heights[0]);
 
 	glDrawArrays(GL_POINTS, 0, 1);
 }
 
-void StencilMesh::update(glm::vec3 mouse_vector, glm::vec3 offset) {
+void BrushMesh::update(glm::vec3 mouse_vector, glm::vec3 offset) {
 	float height = _root->find_height(mouse_vector, offset);
 
 	const float y = abs((offset.y - height) / mouse_vector.y);
@@ -58,7 +60,7 @@ void StencilMesh::update(glm::vec3 mouse_vector, glm::vec3 offset) {
 	_position = glm::vec3(x, height, z);
 }
 
-std::vector<std::array<int, 2>> StencilMesh::tiles_within_radius() {
+std::vector<std::array<int, 2>> BrushMesh::tiles_within_radius() {
 	std::vector<std::array<int, 2>> tiles;
 
 	int start_x = static_cast<int>(floor(_position.x - _radius));
@@ -80,7 +82,7 @@ std::vector<std::array<int, 2>> StencilMesh::tiles_within_radius() {
 }
 
 // flags F_RAISE, F_SET, F_AVERAGE
-void StencilMesh::raise_height(float val, int flag) {
+void BrushMesh::raise_height(float val, int flag) {
 	const auto tiles = tiles_within_radius();
 
 	if (flag == F_AVERAGE) {
@@ -91,17 +93,33 @@ void StencilMesh::raise_height(float val, int flag) {
 				avg += tile_heights._v0;
 			}
 		}
-		avg /= tiles.size();
-		val = avg;
-	}
 
-	for (auto& tile : tiles) {
-		_root->raise_height(tile[0], tile[1], val, flag);
-		_root->recalc_normals(tile[0], tile[1]);
+		avg /= tiles.size();
+
+		for (auto& tile : tiles) {
+			_root->raise_height(tile[0], tile[1], avg, flag);
+			_root->recalc_normals(tile[0], tile[1]);
+		}
+
+	}
+	else if(flag == F_SET_CURRENT) {
+		for (auto& tile : tiles) {
+			_root->raise_height(tile[0], tile[1], _position.y / _root->_transform.get_scale().y, flag);
+			_root->recalc_normals(tile[0], tile[1]);
+		}
+	}
+	else {
+		for (auto& tile : tiles) {
+			const auto distance_ratio = abs(glm::length(glm::vec2(tile[0] - _position.x, tile[1] - _position.z))) / _radius;
+			const auto value = val * (1 - distance_ratio);
+
+			_root->raise_height(tile[0], tile[1], value, flag);
+			_root->recalc_normals(tile[0], tile[1]);
+		}
 	}
 }
 
-void StencilMesh::paint_blend_map(int texture, float weight, int flag) {
+void BrushMesh::paint_blend_map(int texture, float weight, int flag) {
 	const int start_x = glm::mix(0, BLEND_MAP_SIZE - 1, (_position.x - _radius) / (float)_root->_width);
 	const int start_z = glm::mix(0, BLEND_MAP_SIZE - 1, (_position.z - _radius) / (float)_root->_length);
 
@@ -110,14 +128,17 @@ void StencilMesh::paint_blend_map(int texture, float weight, int flag) {
 	const int radius_t_coord = glm::mix(0, BLEND_MAP_SIZE - 1, _radius / (float)_root->_width);
 
 	glm::vec2 distance;
-	for (int x = start_x; x < start_x + 2 * radius_t_coord; ++x) {
+	int x = start_x;
+	int z = start_z;
+
+	for (x = start_x; x < start_x + 2 * radius_t_coord; ++x) {
 		if(x < 0 || x >= BLEND_MAP_SIZE) {
 			continue;
 		}
 
 		distance.x = static_cast<float>(x - position_t_coord_x);
 
-		for (int z = start_z; z < start_z + 2 * radius_t_coord; ++z) {
+		for (z = start_z; z < start_z + 2 * radius_t_coord; ++z) {
 			if(z < 0 || z >= BLEND_MAP_SIZE) {
 				continue;
 			}
@@ -151,18 +172,10 @@ void StencilMesh::paint_blend_map(int texture, float weight, int flag) {
 	}
 
 	glBindTexture(GL_TEXTURE_2D, _root->_blend_texture);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, BLEND_MAP_SIZE, BLEND_MAP_SIZE, GL_RGBA, GL_FLOAT, &_root->_blend_map[0][0][0]);
-}
-
-void StencilMesh::set_radius(float radius) {
-	if(radius <= 0.0f) {
-		return;
-	}
-	_radius = radius;
-}
-
-float StencilMesh::get_radius() const {
-	return _radius;
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, BLEND_MAP_SIZE);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, start_x);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS, start_z);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, start_x, start_z, x - start_x, z - start_z, GL_RGBA, GL_FLOAT, &_root->_blend_map[0][0][0]);
 }
 
 //-----------------------------------------------------------TERRAIN MESH---------------------------------------------------------------------------------------------------------
@@ -235,7 +248,7 @@ void TerrainMesh::draw(TerrainNode* node) {
 	glUniform4f(glGetUniformLocation(_program->_id, "quad"), node->_quad.x, node->_quad.y, node->_quad.z, node->_quad.w);
 	glUniformMatrix4fv(glGetUniformLocation(_program->_id, "model"), 1, GL_FALSE, &node->_root->_transform.get_model()[0][0]);
 
-	glUniform3fv(glGetUniformLocation(_program->_id, "test_light_position"), 1, &node->_root->StencilMesh::_position[0]);
+	glUniform3fv(glGetUniformLocation(_program->_id, "test_light_position"), 1, &node->_root->_brush_mesh->_position[0]);
 
 	glBindBuffer(GL_ARRAY_BUFFER, _height_buffer);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * node->_heights.size(), &node->_heights[0]);
@@ -287,7 +300,7 @@ void TerrainNode::subdivide(int depth) {
 
 void TerrainNode::draw(glm::vec2 position, int depth) {
 	if(depth == _root->_depth || !has_children()) {
-		_root->TerrainMesh::draw(this);
+		_root->_mesh->draw(this);
 		return;
 	}
 
@@ -296,14 +309,14 @@ void TerrainNode::draw(glm::vec2 position, int depth) {
 			child->draw(position, depth + 1);
 		}
 		else {
-			_root->TerrainMesh::draw(child.get());
+			_root->_mesh->draw(child.get());
 		}
 	}
 }
 
 void TerrainNode::draw(int depth) {
 	if (depth == _root->_depth || !has_children()) {
-		_root->TerrainMesh::draw(this);
+		_root->_mesh->draw(this);
 		return;
 	}
 
@@ -600,9 +613,9 @@ TerrainNode* TerrainNode::find_node(float* x, float *z) {
 
 //-----------------------------------------------------------------TERRAIN--------------------------------------------------------------------------------------------------------------
 
-Terrain::Terrain(int width, int length, int depth, Program* terrain_program, Program* stencil_program) :
-	TerrainMesh				( terrain_program ),
-	StencilMesh				( stencil_program, this ),
+Terrain::Terrain(int width, int length, int depth, Program* terrain_program, Program* brush_program) :
+	_mesh					( std::make_unique<TerrainMesh>(terrain_program) ),
+	_brush_mesh				( std::make_unique<BrushMesh>(brush_program, this) ),
 	_width					( width ),
 	_length					( length ),
 	_depth					( depth ),
@@ -615,31 +628,31 @@ Terrain::Terrain(int width, int length, int depth, Program* terrain_program, Pro
 }
 
 void Terrain::create_height_buffer() {
-	glBindVertexArray(TerrainMesh::_vao);
-	glCreateBuffers(1, &_height_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, _height_buffer);
-	glNamedBufferStorage(_height_buffer, sizeof(GLfloat) * _node._heights.size(), &_node._heights[0], GL_DYNAMIC_STORAGE_BIT);
+	glBindVertexArray(_mesh->_vao);
+	glCreateBuffers(1, &_mesh->_height_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _mesh->_height_buffer);
+	glNamedBufferStorage(_mesh->_height_buffer, sizeof(GLfloat) * _node._heights.size(), &_node._heights[0], GL_DYNAMIC_STORAGE_BIT);
 
-	glCreateTextures(GL_TEXTURE_BUFFER, 1, &_height_texture);
-	glTextureBuffer(_height_texture, GL_R32F, _height_buffer);
+	glCreateTextures(GL_TEXTURE_BUFFER, 1, &_mesh->_height_texture);
+	glTextureBuffer(_mesh->_height_texture, GL_R32F, _mesh->_height_buffer);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_BUFFER, _height_texture);
+	glBindTexture(GL_TEXTURE_BUFFER, _mesh->_height_texture);
 }
 
 void Terrain::create_normal_buffer() {
-	glBindVertexArray(TerrainMesh::_vao);
-	glCreateBuffers(1, &_normal_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, _normal_buffer);
-	glNamedBufferStorage(_normal_buffer, sizeof(glm::vec3) * _node._normals.size(), &_node._normals[0], GL_DYNAMIC_STORAGE_BIT);
+	glBindVertexArray(_mesh->_vao);
+	glCreateBuffers(1, &_mesh->_normal_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _mesh->_normal_buffer);
+	glNamedBufferStorage(_mesh->_normal_buffer, sizeof(glm::vec3) * _node._normals.size(), &_node._normals[0], GL_DYNAMIC_STORAGE_BIT);
 
-	glCreateTextures(GL_TEXTURE_BUFFER, 1, &_normal_texture);
-	glTextureBuffer(_normal_texture, GL_RGB32F, _normal_buffer);
+	glCreateTextures(GL_TEXTURE_BUFFER, 1, &_mesh->_normal_texture);
+	glTextureBuffer(_mesh->_normal_texture, GL_RGB32F, _mesh->_normal_buffer);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_BUFFER, _normal_texture);
+	glBindTexture(GL_TEXTURE_BUFFER, _mesh->_normal_texture);
 }
 
 void Terrain::create_blend_texture() {
-	glBindVertexArray(TerrainMesh::_vao);
+	glBindVertexArray(_mesh->_vao);
 	glGenTextures(1, &_blend_texture);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, _blend_texture);
@@ -679,9 +692,8 @@ void Terrain::raise_height(int x, int z, float val, int flag) {
 	case F_RAISE:
 		_node._heights[v_index] += val;
 		break;
+	case F_SET_CURRENT:
 	case F_SET:
-		_node._heights[v_index] = val;
-		break;
 	case F_AVERAGE:
 		_node._heights[v_index] = val;
 		break;
@@ -713,10 +725,10 @@ void Terrain::recalc_normals(int x, int z) {
 		_node._face_normals[index - _width - 1] = _node.calc_face_normal(index - _width - 1);
 	}
 
-	if (index != 0 && (index + 1) % _root->_width == 0) {
+	if (index != 0 && (index + 1) % _width == 0) {
 		_node._normals[v_index] = _node.generate_normal(index, 1);
 	}
-	else if (index % _root->_width == 0) {
+	else if (index % _width == 0) {
 		_node._normals[v_index] = _node.generate_normal(index, 2);
 	}
 	else {
@@ -763,11 +775,11 @@ float Terrain::exact_height(float x, float z) {
 		return 0.0f;
 	}
 
-	int index = x_index + z_index * _root->_width;
+	int index = x_index + z_index * _width;
 	if(index >= (_width * _length)) {
 		return 0.0f;
 	}
-	auto tile = node->get_tile_height(x_index + z_index * _root->_width);
+	auto tile = node->get_tile_height(x_index + z_index * _width);
 
 	glm::vec3 a, b, c;
 	float dx = x - floor(x);

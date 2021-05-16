@@ -49,6 +49,8 @@ public:
 	glm::mat4 get_projection() const;
 	glm::vec3 &get_position() ;
 
+	glm::vec3 mouse_to_3d_vector();
+
 	int get_mode() const;
 private:
 	int		 _mode;
