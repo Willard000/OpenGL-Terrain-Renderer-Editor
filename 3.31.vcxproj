@@ -151,6 +151,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="Data\Shaders\Basic Shader\basic shader.glsl" />
+    <None Include="Data\Shaders\brush shader.glsl" />
+    <None Include="Data\Shaders\terrain shader.glsl" />
     <None Include="Data\Shaders\Terrain Shader\stencil.frag" />
     <None Include="Data\Shaders\Terrain Shader\stencil.geo" />
     <None Include="Data\Shaders\Terrain Shader\stencil.vert" />

@@ -1,4 +1,4 @@
 # Shaders
-0 Data\Shaders\Basic Shader\basic shader.txt
-1 Data\Shaders\Terrain Shader\terrain.txt
-2 Data\Shaders\Terrain Shader\brush.txt
+0 Data\Shaders\basic shader.glsl
+1 Data\Shaders\terrain shader.glsl
+2 Data\Shaders\brush shader.glsl

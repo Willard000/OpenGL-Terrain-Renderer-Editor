@@ -1,3 +1,26 @@
+#Vertex
+
+#version 450 core
+
+uniform mat4 projection;
+uniform mat4 view;
+uniform mat4 model;
+
+uniform vec3 position;
+
+out VS {
+	vec3 vertex;
+} dest;
+
+void main() {
+	dest.vertex = vec3(position.x, position.y, position.z);
+	gl_Position = projection * view * model * vec4(position.x, position.y, position.z, 1.0);
+}
+
+#End
+
+#Geometry
+
 #version 450 core
 
 layout (points) in;
@@ -86,3 +109,17 @@ void main() {
 
     EndPrimitive();
 }
+
+#End
+
+#Fragment
+
+#version 450 core
+
+layout (location = 0) out vec3 f_color;
+
+void main() {
+	f_color = vec3(1, 0, 0);
+}
+
+#End

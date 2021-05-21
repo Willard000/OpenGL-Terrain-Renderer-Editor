@@ -4,28 +4,9 @@
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 
+#include <fstream>
+
 #include <string>
-
-/********************************************************************************************************************************************************/
-
-struct ShaderInfo {
-	unsigned short		 _type;
-	std::string			 _file_path;
-};
-
-/********************************************************************************************************************************************************/
-
-struct ProgramFile {
-	ProgramFile(const char* file_path);
-
-	std::string _dir;
-	std::string _name;
-
-	std::string _vertex_shader;
-	std::string _fragment_shader;
-	std::string _geometry_shader;
-	std::string _compute_shader;
-};
 
 /********************************************************************************************************************************************************/
 
@@ -35,8 +16,8 @@ struct Program {
 	
 	~Program();
 
-	void load(std::string_view file_path);
-	unsigned int load_shaders(const ShaderInfo* program) const;
+	bool load(std::string_view file_path);
+	bool load_shader(int type, const char* shader);
 	
 	int				_key;
 	std::string		_name;

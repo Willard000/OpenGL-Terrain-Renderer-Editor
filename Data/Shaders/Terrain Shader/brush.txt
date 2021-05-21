@@ -1,6 +1,0 @@
--- Brush Shader
-DIR Data\Shaders\Terrain Shader\
-name Brush Shader
-vertex brush.vert
-fragment brush.frag
-geometry brush.geo

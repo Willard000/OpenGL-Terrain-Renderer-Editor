@@ -21,9 +21,17 @@ Editor::Editor(Core* core) :
 	_core			( core ),
 	_brush_window	( this )
 {
-	const auto terrain_shader = _core->_shader_manager->get_program(1);
-	const auto brush_shader	  = _core->_shader_manager->get_program(2);
-	_terrain = std::make_unique<Terrain>(100, 100, 0, terrain_shader, brush_shader);
+
+	TerrainShaders terrain_shaders(
+		_core->_shader_manager->get_program(1),
+		_core->_shader_manager->get_program(2),
+		nullptr
+	);
+
+	GLuint vao;
+	glCreateVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	_terrain = std::make_unique<Terrain>(100, 100, 0, vao, terrain_shaders);
 	_terrain->get_transform().set_scale(glm::vec3(10.0f, 10.0f, 10.0f));
 	_terrain->load("Data\\terrain.txt");
 

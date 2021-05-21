@@ -9,19 +9,7 @@
 
 /********************************************************************************************************************************************************/
 
-ProgramFile::ProgramFile(const char* file_path) {
-	FileReader file(file_path);
-
-	file.set_section("Program");
-	file.read(&_dir, "DIR");
-	file.read(&_name, "name");
-	file.read(&_vertex_shader, "vertex");
-	file.read(&_fragment_shader, "fragment");
-	file.read(&_geometry_shader, "geometry");
-	file.read(&_compute_shader, "compute");
-}
-
-/********************************************************************************************************************************************************/
+#define END_KEYWORD "#End"
 
 Program::Program() :
 	_key		( -1 ),
@@ -39,81 +27,105 @@ Program::~Program() {
 	glDeleteProgram(_id);
 }
 
-void Program::load(std::string_view file_path) {
-	ProgramFile file(file_path.data());
-	ShaderInfo program[] = { {GL_VERTEX_SHADER, }, { GL_GEOMETRY_SHADER, }, { GL_FRAGMENT_SHADER, }, { GL_COMPUTE_SHADER, }, { GL_NONE, } };
-
-	auto append_strings = [](std::string& str, const std::string_view str2, const std::string_view str3) {
-		str.reserve(str2.size() + str3.size());
-		str.append(str2);
-		str.append(str3);
-	};
-
-	if (!file._vertex_shader.empty())		append_strings(program[0]._file_path, file._dir, file._vertex_shader);
-	if (!file._geometry_shader.empty())		append_strings(program[1]._file_path, file._dir, file._geometry_shader);
-	if (!file._fragment_shader.empty())		append_strings(program[2]._file_path, file._dir, file._fragment_shader);
-	if (!file._compute_shader.empty())		append_strings(program[3]._file_path, file._dir, file._compute_shader);
-
-	_id = load_shaders(program);
-	_name = file._name;
+constexpr int conv_shader_type(std::string_view type) {
+	if      (type == "#Vertex")   return GL_VERTEX_SHADER;
+	else if (type == "#Fragment") return GL_FRAGMENT_SHADER;
+	else if (type == "#Geometry") return GL_GEOMETRY_SHADER;
+	else if (type == "#Compute")  return GL_COMPUTE_SHADER;
+	else                          return -1;
 }
 
-GLuint Program::load_shaders(const ShaderInfo* program) const {
-	GLuint	    program_id = glCreateProgram();
-	GLuint		shader_id = 0;
+constexpr const char* conv_shader_type(int type) {
+	if		(type == GL_VERTEX_SHADER)	 return "Vertex Shader";
+	else if (type == GL_FRAGMENT_SHADER) return "Fragment Shader";
+	else if (type == GL_GEOMETRY_SHADER) return "Geometry Shader";
+	else if (type == GL_COMPUTE_SHADER)  return "Compute Shader";
+	else								 return "None";
+}
+
+bool Program::load(std::string_view file_path) {
+	_id   =			glCreateProgram();
+	_name =			file_path.substr(file_path.find_last_of("\\") + 1);
+	int				type;
+	std::string		type_str;
+	std::ifstream   file(file_path.data());
+
+	if(!file.is_open()) {
+		std::cout << "Could Not Find Program File Path --> " << file_path << "\n";
+		return false;
+	}
+
+	const auto parse_shader = [&]() {
+		int beg =	static_cast<int>(file.tellg());
+		int end =	static_cast<int>(file.tellg());
+		std::string keyword;
+		int lines = 0;
+
+		while(std::getline(file, keyword)) {
+			++lines;
+
+			if (keyword == END_KEYWORD) {
+				auto size = end - beg;
+				std::string buf;
+				buf.resize(size - lines);
+
+				file.seekg(beg, std::ios::beg);
+				file.read(&buf[0], size - lines);
+				load_shader(type, buf.c_str());
+				file.ignore(sizeof(END_KEYWORD));
+				return true;
+			}
+
+			end = static_cast<int>(file.tellg());
+		}
+
+		glDeleteProgram(_id);
+		std::cout << "Shader parse error no end marker" << "\n";
+		return false;
+	};
+
+	bool result = false;
+	while(std::getline(file, type_str)) {
+		type = conv_shader_type(type_str);
+		if(type != -1) {
+			result = parse_shader();
+		}
+	}
+
+	if (result) {
+		glLinkProgram(_id);
+		std::cout << "Program Loaded -> " << _id << '\n';
+		return true;
+	}
+
+	return false;
+}
+
+bool Program::load_shader(int type, const char* shader) {
+	GLuint		id = 0;
 	GLint		result = 0;
 	GLint		info_log_length = 0;
-	auto		data = "";
 	auto		loaded = false;
 
-	std::vector<GLuint> shader_ids;
+	id = glCreateShader(type);
+	glShaderSource(id, 1, &shader, NULL);
+	glCompileShader(id);
+	glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+	glGetShaderiv(id, GL_INFO_LOG_LENGTH, &info_log_length);
+	std::cout << "Shader Result -> " << conv_shader_type(type) << " -> " << ((result == GL_TRUE) ? "Good" : "Bad") << '\n';
+	if (info_log_length != 0) {
+		std::vector<GLchar> info_log(info_log_length);
+		glGetShaderInfoLog(id, info_log_length, 0, &info_log[0]);
+		std::cout << "Shader Log -> \n" << &info_log[0] << '\n';
 
-	for (unsigned int i = 0; program[i]._type != GL_NONE; ++i) {
-		std::string			sdata;
-		std::stringstream	ssdata;
-		std::fstream		file(program[i]._file_path, std::ios::in);
-
-		if (file.is_open()) {
-			ssdata << file.rdbuf();
-			file.seekg(0, std::ios::end);
-			sdata.reserve((size_t)file.tellg());
-			sdata = ssdata.str();
-			data = sdata.c_str();
-			shader_id = glCreateShader(program[i]._type);
-			shader_ids.push_back(shader_id);
-
-			glShaderSource(shader_id, 1, &data, NULL);
-			glCompileShader(shader_id);
-			glGetShaderiv(shader_id, GL_COMPILE_STATUS, &result);
-			glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &info_log_length);
-			std::cout << "Shader Result -> " << program[i]._file_path << " -> " << ((result == GL_TRUE) ? "Good" : "Bad") << '\n';
-			if (info_log_length != 0) {
-				std::vector<GLchar> info_log(info_log_length);
-				glGetShaderInfoLog(shader_id, info_log_length, 0, &info_log[0]);
-				std::cout << "Shader Log -> \n" << &info_log[0] << '\n';
-
-				std::cout << "Reload Shaders... ";
-				system("PAUSE");
-				std::cout << '\n';
-			}
-		}
-		else {
-			std::cout << "Couldn't open program file -> " << program[i]._file_path << '\n';
-		}
+		std::cout << "Reload Shaders... ";
+		system("PAUSE");
+		std::cout << '\n';
+		return false;
 	}
 
-	for (auto shader_id : shader_ids) {
-		glAttachShader(program_id, shader_id);
-	}
+	glAttachShader(_id, id);
+	glDeleteShader(id);
 
-	glLinkProgram(program_id);
-
-	for (auto shader_id : shader_ids) {
-		glDetachShader(program_id, shader_id);
-		glDeleteShader(shader_id);
-	}
-
-	std::cout << "Program Loaded -> " << program_id << '\n';
-
-	return program_id;
+	return true;
 }

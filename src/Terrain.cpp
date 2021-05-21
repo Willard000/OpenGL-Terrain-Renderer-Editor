@@ -13,7 +13,17 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#include <future>
+constexpr size_t TILE_VERTICES_SIZE = 12;
+
+constexpr GLfloat TILE_VERTICES[] = {
+	0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+	0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f
+};
+
+constexpr GLfloat TILE_UVS[] = {
+	0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+	0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f
+};
 
 //-----------------------------------------------------------BRUSH MESH---------------------------------------------------------------------------------------------------------
 
@@ -21,22 +31,13 @@ BrushMesh::BrushMesh(Program* program, Terrain* root) :
 	_program		( program ),
 	_root			( root ),
 	_radius			( 1.0f )
-{
-	create_buffers();
-}
+{}
 
-void BrushMesh::create_buffers() {
-	glCreateVertexArrays(1, &_vao);
-	glBindVertexArray(_vao);
+void BrushMesh::draw(glm::vec3 position) {
 	glUseProgram(_program->_id);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_BUFFER, _root->_mesh->_height_texture);
-}
-
-void BrushMesh::draw(glm::vec3 position) {
-	glBindVertexArray(_vao);
-	glUseProgram(_program->_id);
 
 	glUniformMatrix4fv(glGetUniformLocation(_program->_id, "model"), 1, GL_FALSE, &_root->_transform.get_model()[0][0]);
 	glUniform1i(glGetUniformLocation(_program->_id, "width"), _root->_width);
@@ -63,8 +64,8 @@ void BrushMesh::update(glm::vec3 mouse_vector, glm::vec3 offset) {
 std::vector<std::array<int, 2>> BrushMesh::tiles_within_radius() {
 	std::vector<std::array<int, 2>> tiles;
 
-	int start_x = static_cast<int>(floor(_position.x - _radius));
-	int start_z = static_cast<int>(floor(_position.z - _radius));
+	const int start_x = static_cast<int>(floor(_position.x - _radius));
+	const int start_z = static_cast<int>(floor(_position.z - _radius));
 
 	for (int x = start_x; x < start_x + 2 * _radius; ++x) {
 		const auto dist_x = x - _position.x;
@@ -178,19 +179,31 @@ void BrushMesh::paint_blend_map(int texture, float weight, int flag) {
 	glTexSubImage2D(GL_TEXTURE_2D, 0, start_x, start_z, x - start_x, z - start_z, GL_RGBA, GL_FLOAT, &_root->_blend_map[0][0][0]);
 }
 
+//-----------------------------------------------------------Grass MESH---------------------------------------------------------------------------------------------------------
+
+GrassMesh::GrassMesh(Program* program) :
+	_program ( program )
+{
+	create_buffers();
+}
+
+void GrassMesh::create_buffers() {
+	glCreateBuffers(1, &_vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
+	glNamedBufferStorage(_vertex_buffer, sizeof(GLfloat) * TILE_VERTICES_SIZE, TILE_VERTICES, 0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+}
+
+void GrassMesh::draw(glm::vec3 position) {
+	glUseProgram(_program->_id);
+
+	glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
+
+	glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, TILE_VERTICES_SIZE / 2, 1);
+}
+
 //-----------------------------------------------------------TERRAIN MESH---------------------------------------------------------------------------------------------------------
-
-constexpr size_t TILE_VERTICES_SIZE = 12;
-
-constexpr GLfloat TILE_VERTICES[] = {
-	0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-	0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f
-};
-
-constexpr GLfloat TILE_UVS[] = {
-	0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-	0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f
-};
 
 TerrainMesh::TerrainMesh(Program* program) :
 	_program		( program )
@@ -200,10 +213,6 @@ TerrainMesh::TerrainMesh(Program* program) :
 }
 
 void TerrainMesh::create_buffers() {
-	glCreateVertexArrays(1, &_vao);
-	glBindVertexArray(_vao);
-	glUseProgram(_program->_id);
-
 	glCreateBuffers(1, &_vertex_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
 	glNamedBufferStorage(_vertex_buffer, sizeof(GLfloat) * TILE_VERTICES_SIZE, TILE_VERTICES, 0);
@@ -239,8 +248,10 @@ void TerrainMesh::create_tile_textures() {
 }
 
 void TerrainMesh::draw(TerrainNode* node) {
-	glBindVertexArray(_vao);
 	glUseProgram(_program->_id);
+
+	glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _uv_buffer);
 
 	glUniform1i(glGetUniformLocation(_program->_id, "width"), node->_root->_width);
 	glUniform1i(glGetUniformLocation(_program->_id, "length"), node->_root->_length);
@@ -613,22 +624,21 @@ TerrainNode* TerrainNode::find_node(float* x, float *z) {
 
 //-----------------------------------------------------------------TERRAIN--------------------------------------------------------------------------------------------------------------
 
-Terrain::Terrain(int width, int length, int depth, Program* terrain_program, Program* brush_program) :
-	_mesh					( std::make_unique<TerrainMesh>(terrain_program) ),
-	_brush_mesh				( std::make_unique<BrushMesh>(brush_program, this) ),
+Terrain::Terrain(int width, int length, int depth, GLuint vao, TerrainShaders shaders) :
+	_mesh					( std::make_unique<TerrainMesh>(shaders._terrain) ),
+	_brush_mesh				( std::make_unique<BrushMesh>(shaders._brush, this) ),
 	_width					( width ),
 	_length					( length ),
 	_depth					( depth ),
+	_vao					( vao ),
 	_node					( this, nullptr, 1.0f, glm::vec4(0, 0, width, length) ),
 	_sub_indices			( {0, _width / 2, (_width * _length) / 2 + (_length / 2), (_width * _length / 2) + (_length / 2) + (_width / 2) } )
 {
 	assert(width >= 0 && length >= 0);
 	assert(float(width) / 2.0 == width / 2);
-
 }
 
 void Terrain::create_height_buffer() {
-	glBindVertexArray(_mesh->_vao);
 	glCreateBuffers(1, &_mesh->_height_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, _mesh->_height_buffer);
 	glNamedBufferStorage(_mesh->_height_buffer, sizeof(GLfloat) * _node._heights.size(), &_node._heights[0], GL_DYNAMIC_STORAGE_BIT);
@@ -640,7 +650,6 @@ void Terrain::create_height_buffer() {
 }
 
 void Terrain::create_normal_buffer() {
-	glBindVertexArray(_mesh->_vao);
 	glCreateBuffers(1, &_mesh->_normal_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, _mesh->_normal_buffer);
 	glNamedBufferStorage(_mesh->_normal_buffer, sizeof(glm::vec3) * _node._normals.size(), &_node._normals[0], GL_DYNAMIC_STORAGE_BIT);
@@ -652,7 +661,6 @@ void Terrain::create_normal_buffer() {
 }
 
 void Terrain::create_blend_texture() {
-	glBindVertexArray(_mesh->_vao);
 	glGenTextures(1, &_blend_texture);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, _blend_texture);

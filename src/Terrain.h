@@ -46,14 +46,25 @@ public:
 
 	void update_blend_texture();
 
-	void create_buffers();
-
 	glm::vec3						_position;
 	float							_radius;
-	GLuint							_vao;
+
 	GLuint							_vertex_buffer;
 	Program*						_program;
 	Terrain*						_root;
+};
+
+/********************************************************************************************************************************************************/
+
+class GrassMesh {
+	GrassMesh(Program* program);
+
+	void draw(glm::vec3 position);
+	void create_buffers();
+
+	GLuint							_vertex_buffer;
+	GLuint							_texture;
+	Program*						_program;
 };
 
 /********************************************************************************************************************************************************/
@@ -66,7 +77,6 @@ public:
 	void create_tile_textures();
 	void draw(TerrainNode* node);
 	
-	GLuint							_vao;
 	GLuint							_vertex_buffer;
 	GLuint							_uv_buffer;
 	GLuint							_normal_buffer;
@@ -144,9 +154,16 @@ public:
 
 typedef std::array<std::array<glm::vec4, BLEND_MAP_SIZE>, BLEND_MAP_SIZE> BlendMap;
 
+struct TerrainShaders {
+	TerrainShaders(Program* t, Program* b, Program* g) : _terrain ( t ), _brush ( b ), _grass ( g )	{}
+	Program* _terrain;
+	Program* _brush;
+	Program* _grass;
+};
+
 class Terrain {
 public:
-	Terrain(int width, int length, int depth, Program* terrain_program, Program* brush_program);
+	Terrain(int width, int length, int depth, GLuint vao, TerrainShaders shaders);
 
 	void draw(glm::vec3 camera_position);
 	void draw_stencil(glm::vec3 position);
@@ -182,6 +199,8 @@ public:
 
 	std::unique_ptr<TerrainMesh>	_mesh;
 	std::unique_ptr<BrushMesh>		_brush_mesh;
+
+	GLuint							_vao;
 };
 
 /********************************************************************************************************************************************************/

@@ -36,6 +36,15 @@
     <None Include="Data\Shaders\Terrain Shader\stencil.geo">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Data\Shaders\Basic Shader\basic shader.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Data\Shaders\terrain shader.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Data\Shaders\brush shader.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Camera.cpp">

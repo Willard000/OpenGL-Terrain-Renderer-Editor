@@ -19,9 +19,14 @@ Game::Game(Core* core) :
 {
 	assert(_core);
 
-	const auto terrain_shader = _core->_shader_manager->get_program(1);
-	const auto stencil_shader = _core->_shader_manager->get_program(2);
-	_terrain = std::make_unique<Terrain>(100, 100, 3, terrain_shader, stencil_shader);
+	TerrainShaders terrain_shaders(
+		_core->_shader_manager->get_program(1),
+		_core->_shader_manager->get_program(2),
+		nullptr
+	);
+
+	GLuint vao = 0;
+	_terrain = std::make_unique<Terrain>(100, 100, 3, vao, terrain_shaders);
 	_terrain->get_transform().set_scale(glm::vec3(1.0f, 1.0f, 1.0f));
 	_terrain->load("Data\\terrain.txt");
 
